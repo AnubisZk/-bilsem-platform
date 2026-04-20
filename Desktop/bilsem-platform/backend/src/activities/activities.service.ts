@@ -1,0 +1,157 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../common/prisma/prisma.service';
+import { Level, Difficulty } from '@prisma/client';
+import { IsString, IsNumber, IsEnum, IsOptional, IsArray, IsBoolean } from 'class-validator';
+
+export class CreateActivityLogDto {
+  @IsString() @IsOptional() groupId?: string;
+  @IsString() @IsOptional() activityId?: string;
+  @IsString() date: string;
+  @IsString() topic: string;
+  @IsString() @IsOptional() notes?: string;
+  @IsNumber() participation: number;
+  @IsNumber() completion: number;
+  @IsBoolean() @IsOptional() homeworkGiven?: boolean;
+  @IsString() @IsOptional() homeworkDesc?: string;
+  @IsNumber() duration: number;
+  @IsArray() @IsOptional() studentPerformances?: Array<{
+    studentId: string;
+    performance: number;
+    notes?: string;
+    attended: boolean;
+  }>;
+}
+
+@Injectable()
+export class ActivitiesService {
+  constructor(private prisma: PrismaService) {}
+
+  async findAll(filters: {
+    level?: Level;
+    topic?: string;
+    difficulty?: Difficulty;
+    moduleId?: string;
+    search?: string;
+  }) {
+    const where: any = {};
+    if (filters.level) where.level = filters.level;
+    if (filters.difficulty) where.difficulty = filters.difficulty;
+    if (filters.moduleId) where.moduleId = filters.moduleId;
+    if (filters.topic) where.topic = { contains: filters.topic, mode: 'insensitive' };
+    if (filters.search) {
+      where.OR = [
+        { title: { contains: filters.search, mode: 'insensitive' } },
+        { description: { contains: filters.search, mode: 'insensitive' } },
+        { topic: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
+
+    return this.prisma.activity.findMany({
+      where,
+      include: { module: true, _count: { select: { activityLogs: true } } },
+      orderBy: { usageCount: 'desc' },
+    });
+  }
+
+  async findOne(id: string) {
+    const a = await this.prisma.activity.findUnique({
+      where: { id },
+      include: {
+        module: true,
+        activityLogs: {
+          include: { teacher: { include: { user: true } } },
+          orderBy: { date: 'desc' },
+          take: 5,
+        },
+      },
+    });
+    if (!a) throw new NotFoundException('Etkinlik bulunamadı');
+    return a;
+  }
+
+  async getModules(level?: Level) {
+    return this.prisma.module.findMany({
+      where: level ? { level } : {},
+      include: {
+        _count: { select: { activities: true } },
+        activities: {
+          select: { id: true, title: true, topic: true, difficulty: true },
+          orderBy: { topic: 'asc' },
+        },
+      },
+      orderBy: { order: 'asc' },
+    });
+  }
+
+  async logActivity(teacherId: string, dto: CreateActivityLogDto) {
+    const log = await this.prisma.activityLog.create({
+      data: {
+        teacherId,
+        groupId: dto.groupId,
+        activityId: dto.activityId,
+        date: new Date(dto.date),
+        topic: dto.topic,
+        notes: dto.notes,
+        participation: dto.participation,
+        completion: dto.completion,
+        homeworkGiven: dto.homeworkGiven || false,
+        homeworkDesc: dto.homeworkDesc,
+        duration: dto.duration,
+      },
+    });
+
+    if (dto.studentPerformances?.length) {
+      await this.prisma.studentActivityLog.createMany({
+        data: dto.studentPerformances.map((sp) => ({
+          activityLogId: log.id,
+          studentId: sp.studentId,
+          performance: sp.performance,
+          notes: sp.notes,
+          attended: sp.attended,
+        })),
+      });
+    }
+
+    if (dto.activityId) {
+      await this.prisma.activity.update({
+        where: { id: dto.activityId },
+        data: { usageCount: { increment: 1 } },
+      });
+    }
+
+    return log;
+  }
+
+  async getLogs(teacherId: string, groupId?: string, studentId?: string) {
+    const where: any = { teacherId };
+    if (groupId) where.groupId = groupId;
+    if (studentId) where.studentLogs = { some: { studentId } };
+
+    return this.prisma.activityLog.findMany({
+      where,
+      include: {
+        activity: true,
+        group: true,
+        studentLogs: { include: { student: true } },
+      },
+      orderBy: { date: 'desc' },
+      take: 50,
+    });
+  }
+
+  async getWeeklyStats(teacherId: string) {
+    const since = new Date();
+    since.setDate(since.getDate() - 7);
+    return this.prisma.activityLog.count({
+      where: { teacherId, date: { gte: since } },
+    });
+  }
+
+  async getTopActivities() {
+    return this.prisma.activity.findMany({
+      orderBy: { usageCount: 'desc' },
+      take: 10,
+      include: { module: true },
+    });
+  }
+}
