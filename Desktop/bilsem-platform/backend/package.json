@@ -4,7 +4,7 @@
   "description": "BİLSEM Math Intelligence Platform - Backend API",
   "scripts": {
     "build": "nest build",
-    "start":"npx prisma migrate deploy && node dist/main",
+    "start":"npx prisma migrate deploy && npm run seed && node dist/main",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
