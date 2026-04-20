@@ -49,11 +49,11 @@ function QuestionCard({ q, onDelete, onFavorite }: any) {
             </h4>
             <div className="flex items-center gap-1 flex-shrink-0">
               {q.isPublic
-                ? <Globe className="w-3 h-3 text-gray-300" title="Herkese açık" />
-                : <Lock className="w-3 h-3 text-gray-300" title="Kişisel" />
+                ? <Globe className="w-3 h-3 text-gray-300" />
+                : <Lock className="w-3 h-3 text-gray-300" />
               }
               {q.aiGenerated && (
-                <Sparkles className="w-3 h-3 text-violet-400" title="AI üretimi" />
+                <Sparkles className="w-3 h-3 text-violet-400" />
               )}
             </div>
           </div>
