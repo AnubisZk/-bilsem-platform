@@ -5,9 +5,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Settings, Notebook, Pin, Plus, Trash2, X,
-  User, Bell, Shield, Palette, ExternalLink, Cloud,
+  User, Bell, Shield, ExternalLink, Cloud, Lock,
 } from 'lucide-react';
-import { usersApi } from '@/lib/api';
+import { usersApi, authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/api';
 import { formatRelativeDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -37,9 +37,10 @@ export default function SettingsPage() {
   const { register, handleSubmit, reset } = useForm<any>();
 
   const tabs = [
-    { key: 'notes',    label: 'Not Defteri', icon: Notebook },
-    { key: 'profile',  label: 'Profil',      icon: User },
-    { key: 'gdrive',   label: 'Google Drive', icon: Cloud },
+    { key: 'notes',    label: 'Not Defteri',    icon: Notebook },
+    { key: 'profile',  label: 'Profil',          icon: User },
+    { key: 'password', label: 'Şifre Değiştir',  icon: Lock },
+    { key: 'gdrive',   label: 'Google Drive',    icon: Cloud },
   ];
 
   return (
@@ -49,8 +50,7 @@ export default function SettingsPage() {
         <p className="text-sm text-gray-400 mt-0.5">Profil, entegrasyonlar ve kişisel araçlar</p>
       </div>
 
-      {/* Tab navigation */}
-      <div className="flex gap-1 bg-gray-100 dark:bg-gray-800/50 p-1 rounded-xl w-fit">
+      <div className="flex gap-1 bg-gray-100 dark:bg-gray-800/50 p-1 rounded-xl w-fit flex-wrap">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -66,7 +66,6 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {/* Notes tab */}
       {tab === 'notes' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -75,7 +74,6 @@ export default function SettingsPage() {
               <Plus className="w-4 h-4" /> Not Ekle
             </button>
           </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <AnimatePresence>
               {notes.map((note: any) => (
@@ -104,17 +102,13 @@ export default function SettingsPage() {
                 </motion.div>
               ))}
             </AnimatePresence>
-
             {notes.length === 0 && (
               <div className="col-span-full text-center py-12 text-gray-400">
                 <Notebook className="w-10 h-10 mx-auto mb-2 opacity-30" />
                 <p className="text-sm">Henüz not yok</p>
-                <p className="text-xs mt-1">Ders notları, gözlemler, fikirler...</p>
               </div>
             )}
           </div>
-
-          {/* Add note modal */}
           <AnimatePresence>
             {showAddNote && (
               <motion.div
@@ -144,7 +138,7 @@ export default function SettingsPage() {
                     </div>
                     <div>
                       <label className="label">Etiketler (virgülle ayırın)</label>
-                      <input {...register('tags')} className="input-field" placeholder="matematik, 7.sınıf, olimpiyat" />
+                      <input {...register('tags')} className="input-field" placeholder="matematik, 7.sınıf" />
                     </div>
                     <div className="flex gap-3">
                       <button type="button" onClick={() => { setShowAddNote(false); reset(); }} className="btn-secondary flex-1 justify-center">İptal</button>
@@ -158,7 +152,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Profile tab */}
       {tab === 'profile' && (
         <div className="card p-6 max-w-md">
           <div className="flex items-center gap-4 mb-6">
@@ -185,7 +178,46 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Google Drive tab */}
+      {tab === 'password' && (
+        <div className="card p-6 max-w-md">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 bg-brand-50 dark:bg-brand-900/20 rounded-xl flex items-center justify-center">
+              <Lock className="w-5 h-5 text-brand-500" />
+            </div>
+            <h3 className="font-semibold text-gray-900 dark:text-white">Şifre Değiştir</h3>
+          </div>
+          <form onSubmit={async (e: any) => {
+            e.preventDefault();
+            const f = e.target;
+            if (f.np.value !== f.np2.value) { toast.error('Şifreler uyuşmuyor'); return; }
+            if (f.np.value.length < 6) { toast.error('Şifre en az 6 karakter olmalı'); return; }
+            try {
+              await authApi.changePassword(f.op.value, f.np.value);
+              toast.success('Şifre başarıyla değiştirildi!');
+              e.target.reset();
+            } catch {
+              toast.error('Mevcut şifre hatalı');
+            }
+          }} className="space-y-4">
+            <div>
+              <label className="label">Mevcut Şifre</label>
+              <input name="op" type="password" className="input-field" placeholder="••••••••" required />
+            </div>
+            <div>
+              <label className="label">Yeni Şifre</label>
+              <input name="np" type="password" className="input-field" placeholder="••••••••" required />
+            </div>
+            <div>
+              <label className="label">Yeni Şifre Tekrar</label>
+              <input name="np2" type="password" className="input-field" placeholder="••••••••" required />
+            </div>
+            <button type="submit" className="btn-primary w-full justify-center">
+              <Lock className="w-4 h-4" /> Şifreyi Değiştir
+            </button>
+          </form>
+        </div>
+      )}
+
       {tab === 'gdrive' && (
         <div className="card p-6 max-w-lg">
           <div className="flex items-center gap-3 mb-5">
@@ -197,7 +229,6 @@ export default function SettingsPage() {
               <p className="text-xs text-gray-400">Etkinlik kitaplarını Drive'dan yükleyin</p>
             </div>
           </div>
-
           <div className="space-y-4">
             <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
               <p className="text-sm text-blue-700 dark:text-blue-300 font-medium mb-2">Nasıl Çalışır?</p>
@@ -205,20 +236,17 @@ export default function SettingsPage() {
                 <li>1. Google hesabınızla bağlanın</li>
                 <li>2. Etkinlik kitaplarının bulunduğu klasörü seçin</li>
                 <li>3. PDF'ler otomatik olarak sisteme aktarılır</li>
-                <li>4. OCR ile soru metinleri ayıklanır</li>
+                <li>4. AI ile etkinlikler ayıklanır</li>
               </ol>
             </div>
-
             <div>
               <label className="label">Drive Klasör ID</label>
               <input className="input-field" placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs..." />
               <p className="text-xs text-gray-400 mt-1">Drive'da klasörü açıp URL'den ID'yi kopyalayın</p>
             </div>
-
             <button className="btn-primary w-full justify-center">
               <Cloud className="w-4 h-4" /> Google Drive'a Bağlan
             </button>
-
             <div className="flex items-center gap-2 text-xs text-gray-400">
               <ExternalLink className="w-3.5 h-3.5" />
               <a href="https://docs.anthropic.com" target="_blank" className="hover:text-brand-500">

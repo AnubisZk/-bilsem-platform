@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Search, Filter, Users, School, TrendingUp,
-  ChevronRight, Star, MoreHorizontal, X, BookOpen,
+  ChevronRight, Star, MoreHorizontal, X, BookOpen, Trash2,
 } from 'lucide-react';
 import { studentsApi } from '@/lib/api';
 import {
@@ -48,6 +48,15 @@ export default function StudentsPage() {
       toast.success('Öğrenci başarıyla eklendi!');
     },
     onError: () => toast.error('Öğrenci eklenemedi'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => studentsApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['students'] });
+      toast.success('Öğrenci silindi');
+    },
+    onError: () => toast.error('Silinemedi'),
   });
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<any>();
@@ -136,7 +145,16 @@ export default function StudentsPage() {
                       <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${AVATAR_COLORS[i % AVATAR_COLORS.length]} flex items-center justify-center text-white font-bold text-sm shadow-sm`}>
                         {getInitials(student.name, student.surname)}
                       </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-brand-500 group-hover:translate-x-1 transition-all" />
+                      <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (confirm(student.name + ' silinsin mi?')) deleteMutation.mutate(student.id);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-all p-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                  <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-brand-500 group-hover:translate-x-1 transition-all" />
                     </div>
 
                     {/* Info */}
