@@ -277,4 +277,16 @@ Profesyonel, yapıcı ve motive edici bir dil kullan.`;
 
     return this.callClaude(prompt, systemPrompt);
   }
+
+  async extractActivitiesFromText(text: string, level: string): Promise<any[]> {
+    const systemPrompt = "Sen BİLSEM matematik etkinlik kitaplarini analiz eden uzmansın. Verilen metinden etkinlikleri cikarir, yapılandırır ve JSON formatına cevirirsin. Her zaman Türkce yanıt verirsin.";
+    const prompt = "Asagidaki BİLSEM matematik kitabi metninden etkinlikleri cikar:\n\n" + text.slice(0, 8000) + "\n\nHer etkinlik icin JSON formatinda yanit ver:[{title,description,topic,objectives,materials,duration,difficulty,skills,instructions,gradeRange}]";
+    const raw = await this.callClaude(prompt, systemPrompt);
+    try {
+      const jsonMatch = raw.match(/\[[\s\S]*\]/);
+      if (jsonMatch) return JSON.parse(jsonMatch[0]);
+    } catch {}
+    return [];
+  }
+
 }
