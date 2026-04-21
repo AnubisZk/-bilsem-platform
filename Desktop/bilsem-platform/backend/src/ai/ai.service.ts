@@ -16,7 +16,42 @@ export class AiService {
         'Content-Type': 'application/json',
         'x-api-key': this.apiKey,
         'anthropic-version': '2023-06-01',
-      },
+     async extractActivitiesFromText(text: string, level: string): 
+Promise<any[]> {
+  const systemPrompt = `Sen BİLSEM matematik etkinlik kitaplarını analiz 
+eden uzmansın.
+Verilen metinden etkinlikleri çıkarır, yapılandırır ve JSON formatına 
+çevirirsin.
+Her zaman Türkçe yanıt verirsin.`;
+
+  const prompt = `Aşağıdaki BİLSEM matematik kitabı metninden etkinlikleri 
+çıkar:
+
+${text.slice(0, 8000)}
+
+Her etkinlik için JSON formatında yanıt ver:
+[
+  {
+    "title": "Etkinlik adı",
+    "description": "Kısa açıklama",
+    "topic": "Matematik konusu",
+    "objectives": ["Kazanım 1", "Kazanım 2"],
+    "materials": ["Materyal 1"],
+    "duration": 45,
+    "difficulty": "KOLAY|ORTA|ZOR",
+    "skills": ["Beceri 1"],
+    "instructions": "Uygulama adımları",
+    "gradeRange": "5-7"
+  }
+]`;
+
+  const raw = await this.callClaude(prompt, systemPrompt);
+  try {
+    const jsonMatch = raw.match(/\[[\s\S]*\]/);
+    if (jsonMatch) return JSON.parse(jsonMatch[0]);
+  } catch {}
+  return [];
+} },
       body: JSON.stringify({
         model: 'claude-opus-4-5',
         max_tokens: 4096,

@@ -1,6 +1,6 @@
+
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { AiService } from '../ai/ai.service';
 import { Level, Difficulty } from '@prisma/client';
 import { IsString, IsNumber, IsEnum, IsOptional, IsArray, IsBoolean } from 'class-validator';
 
@@ -25,48 +25,62 @@ export class CreateActivityLogDto {
 
 @Injectable()
 export class ActivitiesService {
-  constructor(private prisma: PrismaService, private aiService: AiService) {}
+  constructor(private prisma: PrismaService) {}
 
-  async findAll(filters: any) {
+  async findAll(filters: {
+    level?: Level;
+    topic?: string;
+    difficulty?: Difficulty;
+    moduleId?: string;
+    search?: string;
+  }) {
     const where: any = {};
     if (filters.level) where.level = filters.level;
     if (filters.difficulty) where.difficulty = filters.difficulty;
     if (filters.moduleId) where.moduleId = filters.moduleId;
-    if (filters.topic) where.topic = { contains: filters.topic, mode: "insensitive" };
+    if (filters.topic) where.topic = { contains: filters.topic, mode: 'insensitive' };
     if (filters.search) {
       where.OR = [
-        { title: { contains: filters.search, mode: "insensitive" } },
-        { description: { contains: filters.search, mode: "insensitive" } },
-        { topic: { contains: filters.search, mode: "insensitive" } },
+        { title: { contains: filters.search, mode: 'insensitive' } },
+        { description: { contains: filters.search, mode: 'insensitive' } },
+        { topic: { contains: filters.search, mode: 'insensitive' } },
       ];
     }
+
     return this.prisma.activity.findMany({
       where,
       include: { module: true, _count: { select: { activityLogs: true } } },
-      orderBy: { usageCount: "desc" },
+      orderBy: { usageCount: 'desc' },
     });
   }
 
   async findOne(id: string) {
     const a = await this.prisma.activity.findUnique({
       where: { id },
-      include: { module: true },
+      include: {
+        module: true,
+        activityLogs: {
+          include: { teacher: { include: { user: true } } },
+          orderBy: { date: 'desc' },
+          take: 5,
+        },
+      },
     });
-    if (!a) throw new NotFoundException("Etkinlik bulunamadi");
+    if (!a) throw new NotFoundException('Etkinlik bulunamadı');
     return a;
   }
 
-  async getModules(level?: any) {
+  async getModules(level?: Level) {
     return this.prisma.module.findMany({
       where: level ? { level } : {},
       include: {
         _count: { select: { activities: true } },
         activities: {
           select: { id: true, title: true, topic: true, difficulty: true },
-          orderBy: { topic: "asc" },
+          orderBy: { topic: 'asc' },
         },
       },
-      orderBy: { order: "asc" },
+      orderBy: { order: 'asc' },
     });
   }
 
@@ -86,6 +100,7 @@ export class ActivitiesService {
         duration: dto.duration,
       },
     });
+
     if (dto.studentPerformances?.length) {
       await this.prisma.studentActivityLog.createMany({
         data: dto.studentPerformances.map((sp) => ({
@@ -97,12 +112,14 @@ export class ActivitiesService {
         })),
       });
     }
+
     if (dto.activityId) {
       await this.prisma.activity.update({
         where: { id: dto.activityId },
         data: { usageCount: { increment: 1 } },
       });
     }
+
     return log;
   }
 
@@ -110,53 +127,32 @@ export class ActivitiesService {
     const where: any = { teacherId };
     if (groupId) where.groupId = groupId;
     if (studentId) where.studentLogs = { some: { studentId } };
+
     return this.prisma.activityLog.findMany({
       where,
-      include: { activity: true, group: true, studentLogs: { include: { student: true } } },
-      orderBy: { date: "desc" },
+      include: {
+        activity: true,
+        group: true,
+        studentLogs: { include: { student: true } },
+      },
+      orderBy: { date: 'desc' },
       take: 50,
+    });
+  }
+
+  async getWeeklyStats(teacherId: string) {
+    const since = new Date();
+    since.setDate(since.getDate() - 7);
+    return this.prisma.activityLog.count({
+      where: { teacherId, date: { gte: since } },
     });
   }
 
   async getTopActivities() {
     return this.prisma.activity.findMany({
-      orderBy: { usageCount: "desc" },
+      orderBy: { usageCount: 'desc' },
       take: 10,
       include: { module: true },
     });
-  }
-
-  async importFromDrive(teacherId: string, fileId: string, accessToken: string, moduleId: string, level: string): Promise<any> {
-    const response = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    const buffer = await response.arrayBuffer();
-    const pdf = require("pdf-parse");
-    const data = await pdf(Buffer.from(buffer));
-    const activities = await this.aiService.extractActivitiesFromText(data.text, level);
-    const saved = [];
-    for (const a of activities) {
-      const activity = await this.prisma.activity.create({
-        data: {
-          moduleId,
-          title: a.title || "Isimsiz Etkinlik",
-          description: a.description || "",
-          topic: a.topic || "Genel",
-          objectives: a.objectives || [],
-          materials: a.materials || [],
-          duration: a.duration || 45,
-          difficulty: (a.difficulty as any) || "ORTA",
-          skills: a.skills || [],
-          instructions: a.instructions || "",
-          gradeRange: a.gradeRange || "5-8",
-          level: level as any,
-          isOfficial: false,
-          sourceBook: "Drive PDF",
-        },
-      });
-      saved.push(activity);
-    }
-    return { imported: saved.length, activities: saved };
   }
 }
