@@ -3,7 +3,8 @@ import { PrismaService } from '../common/prisma/prisma.service';
 import { AiService } from '../ai/ai.service';
 import { Level, Difficulty } from '@prisma/client';
 import { IsString, IsNumber, IsEnum, IsOptional, IsArray, IsBoolean } from 'class-validator';
-import * as pdfParse from 'pdf-parse';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const pdfParse = require('pdf-parse');
 
 export class CreateActivityLogDto {
   @IsString() @IsOptional() groupId?: string;
