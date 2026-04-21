@@ -3,6 +3,7 @@ import { PrismaService } from '../common/prisma/prisma.service';
 import { AiService } from '../ai/ai.service';
 import { Level, Difficulty } from '@prisma/client';
 import { IsString, IsNumber, IsEnum, IsOptional, IsArray, IsBoolean } from 'class-validator';
+import * as pdfParse from 'pdf-parse';
 
 export class CreateActivityLogDto {
   @IsString() @IsOptional() groupId?: string;
@@ -132,8 +133,7 @@ export class ActivitiesService {
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     const buffer = await response.arrayBuffer();
-    const pdf = require("pdf-parse");
-    const data = await pdf(Buffer.from(buffer));
+    const data = await pdfParse(Buffer.from(buffer));
     const activities = await this.aiService.extractActivitiesFromText(data.text, level);
     const saved = [];
     for (const a of activities) {
