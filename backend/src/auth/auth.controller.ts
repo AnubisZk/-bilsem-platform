@@ -42,7 +42,7 @@ export class AuthController {
     return this.authService.changePassword(req.user.id, dto.oldPassword, dto.newPassword);
   }
 
-  @Post('student-login')
+  @Post('student-login') // v2
   studentLogin(@Body() body: { studentId: string; password: string }) {
     return this.authService.studentLogin(body.studentId, body.password);
   }
