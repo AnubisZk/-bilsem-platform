@@ -44,4 +44,15 @@ export class StudentsController {
   delete(@Param('id') id: string) {
     return this.studentsService.delete(id);
   }
+
+  @Post(':id/create-portal')
+  createPortal(@Param('id') id: string) {
+    return this.studentsService.createPortalAccount(id);
+  }
+
+  @Get(':id/portal-data')
+  getPortalData(@Param('id') id: string) {
+    return this.studentsService.getPortalData(id);
+  }
+
 }

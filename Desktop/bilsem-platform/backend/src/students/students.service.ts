@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
+import * as bcrypt from 'bcryptjs';
 import { IsString, IsNumber, IsEnum, IsOptional, IsArray } from 'class-validator';
 import { Level } from '@prisma/client';
 
@@ -143,4 +144,69 @@ export class StudentsService {
     ]);
     return { total, active, byLevel, byGrade };
   }
+
+  async createPortalAccount(studentId: string) {
+    const student = await this.prisma.student.findUnique({ where: { id: studentId } });
+    if (!student) throw new Error('Öğrenci bulunamadı');
+
+    // Otomatik şifre: AdSoyad2026
+    const initials = (student.name.charAt(0) + student.surname.charAt(0)).toUpperCase();
+    const password = initials + '2026';
+    const hash = await bcrypt.hash(password, 12);
+    const email = student.studentCode.toLowerCase() + '@bilsem.edu.tr';
+
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      return { email, password, exists: true };
+    }
+
+    await this.prisma.user.create({
+      data: {
+        email,
+        passwordHash: hash,
+        name: student.name + ' ' + student.surname,
+        role: 'STUDENT',
+        student: { connect: { id: studentId } },
+      },
+    });
+
+    return { email, password, exists: false };
+  }
+
+  async getPortalData(studentId: string) {
+    return this.prisma.student.findUnique({
+      where: { id: studentId },
+      include: {
+        groupStudents: {
+          include: {
+            group: {
+              include: {
+                plans: {
+                  include: {
+                    planItems: {
+                      include: { activity: true },
+                      orderBy: [{ week: 'asc' }, { order: 'asc' }],
+                    },
+                  },
+                  orderBy: { createdAt: 'desc' },
+                  take: 1,
+                },
+              },
+            },
+          },
+        },
+        studentLogs: {
+          include: { activityLog: { include: { activity: true } } },
+          orderBy: { activityLog: { date: 'desc' } },
+          take: 20,
+        },
+        feedbacks: {
+          where: { status: 'GONDERILDI' },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        },
+      },
+    });
+  }
+
 }
