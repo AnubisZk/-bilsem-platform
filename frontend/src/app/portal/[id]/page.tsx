@@ -98,7 +98,7 @@ export default function StudentPortalPage() {
   // Plan verilerini al
   const plan = studentData?.groupStudents?.[0]?.group?.plans?.[0];
   const planItems = plan?.planItems || [];
-  const weeks = [...new Set(planItems.map((item: any) => item.week))].sort((a: any, b: any) => a - b);
+  const weeks = Array.from(new Set(planItems.map((item: any) => item.week as number))).sort((a, b) => a - b);
 
   // Etkinlik istatistikleri
   const totalActivities = studentData?.studentLogs?.length || 0;
