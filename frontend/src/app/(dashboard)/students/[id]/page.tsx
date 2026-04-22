@@ -1,17 +1,18 @@
 'use client';
 
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, School, Users, BookOpen, MessageSquare,
-  TrendingUp, Star, Target, Clock, Edit, Trash2,
-  Award, Activity, FileText, ChevronRight, Brain,
+  TrendingUp, Star, Target, Clock, Trash2,
+  Award, Activity, FileText, Brain, Key, ExternalLink,
 } from 'lucide-react';
-import { studentsApi, feedbackApi } from '@/lib/api';
+import { studentsApi, feedbackApi, api } from '@/lib/api';
 import {
   cn, getInitials, getMathLevelColor, getLevelLabel,
-  formatDate, formatRelativeDate, getDifficultyColor, getDifficultyLabel,
+  formatRelativeDate,
 } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
@@ -33,6 +34,8 @@ export default function StudentDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const qc = useQueryClient();
+  const [portalInfo, setPortalInfo] = useState<any>(null);
+  const [creatingPortal, setCreatingPortal] = useState(false);
 
   const { data: student, isLoading } = useQuery({
     queryKey: ['student', id],
@@ -60,6 +63,19 @@ export default function StudentDetailPage() {
     },
   });
 
+  async function createPortal() {
+    setCreatingPortal(true);
+    try {
+      const res = await api.post(`/students/${id}/create-portal`);
+      setPortalInfo(res.data);
+      toast.success(res.data.exists ? 'Mevcut portal bilgileri' : 'Portal hesabı oluşturuldu!');
+    } catch {
+      toast.error('Portal oluşturulamadı');
+    } finally {
+      setCreatingPortal(false);
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="space-y-5 max-w-5xl">
@@ -67,7 +83,6 @@ export default function StudentDetailPage() {
         <div className="card p-6 space-y-4">
           <div className="shimmer-bg h-16 w-16 rounded-xl" />
           <div className="shimmer-bg h-6 w-48 rounded" />
-          <div className="shimmer-bg h-4 w-32 rounded" />
         </div>
       </div>
     );
@@ -87,33 +102,23 @@ export default function StudentDetailPage() {
   ];
 
   const progressData = [
-    { ay: 'Eyl', puan: 68 },
-    { ay: 'Eki', puan: 72 },
-    { ay: 'Kas', puan: 75 },
-    { ay: 'Ara', puan: 74 },
-    { ay: 'Oca', puan: 79 },
-    { ay: 'Şub', puan: 83 },
+    { ay: 'Eyl', puan: 68 }, { ay: 'Eki', puan: 72 },
+    { ay: 'Kas', puan: 75 }, { ay: 'Ara', puan: 74 },
+    { ay: 'Oca', puan: 79 }, { ay: 'Şub', puan: 83 },
   ];
 
   return (
     <div className="space-y-5 max-w-5xl">
-      {/* Geri butonu */}
       <Link href="/students">
         <button className="btn-ghost py-2 -ml-1">
-          <ArrowLeft className="w-4 h-4" />
-          Öğrenciler
+          <ArrowLeft className="w-4 h-4" /> Öğrenciler
         </button>
       </Link>
 
-      {/* Üst kart - Öğrenci bilgileri */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="card p-6"
-      >
+      {/* Üst kart */}
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-4">
-            {/* Avatar */}
             <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${AVATAR_COLORS[colorIndex]} flex items-center justify-center text-white text-xl font-bold shadow-sm flex-shrink-0`}>
               {getInitials(student.name, student.surname)}
             </div>
@@ -135,12 +140,23 @@ export default function StudentDetailPage() {
           </div>
 
           {/* Aksiyonlar */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+            <button
+              onClick={createPortal}
+              disabled={creatingPortal}
+              className="btn-secondary text-sm py-2"
+            >
+              <Key className="w-4 h-4" />
+              {creatingPortal ? 'Oluşturuluyor...' : 'Portal Hesabı'}
+            </button>
+            <a href={`/portal/${id}`} target="_blank" rel="noopener noreferrer">
+              <button className="btn-primary text-sm py-2">
+                <ExternalLink className="w-4 h-4" /> Portala Git
+              </button>
+            </a>
             <button
               onClick={() => {
-                if (confirm(`${student.name} ${student.surname} silinsin mi?`)) {
-                  deleteMutation.mutate();
-                }
+                if (confirm(`${student.name} ${student.surname} silinsin mi?`)) deleteMutation.mutate();
               }}
               className="btn-ghost p-2 text-red-400 hover:text-red-600"
             >
@@ -149,24 +165,36 @@ export default function StudentDetailPage() {
           </div>
         </div>
 
+        {/* Portal bilgileri */}
+        {portalInfo && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl"
+          >
+            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300 mb-2">
+              {portalInfo.exists ? '🔑 Mevcut Portal Bilgileri' : '✅ Portal Hesabı Oluşturuldu!'}
+            </p>
+            <div className="grid grid-cols-2 gap-2 text-xs text-emerald-600 dark:text-emerald-400">
+              <div><span className="font-medium">E-posta:</span> {portalInfo.email}</div>
+              <div><span className="font-medium">Şifre:</span> {portalInfo.password}</div>
+            </div>
+            <p className="text-xs text-emerald-500 mt-2">Bu bilgileri öğrenciye iletin. Öğrenci şifresini daha sonra değiştirebilir.</p>
+          </motion.div>
+        )}
+
         {/* İstatistikler */}
         <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-black/[0.04] dark:border-white/[0.04]">
           <div className="text-center">
-            <p className="text-2xl font-bold font-display text-brand-500">
-              {analytics?.totalActivities ?? '—'}
-            </p>
+            <p className="text-2xl font-bold font-display text-brand-500">{analytics?.totalActivities ?? '—'}</p>
             <p className="text-xs text-gray-400 mt-1">Toplam Etkinlik</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold font-display text-emerald-500">
-              {analytics?.avgPerformance ?? '—'}/5
-            </p>
+            <p className="text-2xl font-bold font-display text-emerald-500">{analytics?.avgPerformance ?? '—'}/5</p>
             <p className="text-xs text-gray-400 mt-1">Ort. Performans</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold font-display text-amber-500">
-              {student.feedbacks?.length ?? 0}
-            </p>
+            <p className="text-2xl font-bold font-display text-amber-500">{student.feedbacks?.length ?? 0}</p>
             <p className="text-xs text-gray-400 mt-1">Geri Bildirim</p>
           </div>
         </div>
@@ -174,56 +202,34 @@ export default function StudentDetailPage() {
 
       {/* İki sütun */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Sol - Detaylar */}
+        {/* Sol */}
         <div className="space-y-4">
-          {/* Güçlü yönler */}
           {student.strengths?.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="card p-4"
-            >
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="card p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Star className="w-4 h-4 text-amber-400" />
                 <h4 className="font-medium text-gray-900 dark:text-white text-sm">Güçlü Yönler</h4>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {student.strengths.map((s: string) => (
-                  <span key={s} className="badge badge-green text-xs">{s}</span>
-                ))}
+                {student.strengths.map((s: string) => <span key={s} className="badge badge-green text-xs">{s}</span>)}
               </div>
             </motion.div>
           )}
 
-          {/* Gelişim alanları */}
           {student.weaknesses?.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-              className="card p-4"
-            >
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="card p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Target className="w-4 h-4 text-red-400" />
                 <h4 className="font-medium text-gray-900 dark:text-white text-sm">Gelişim Alanları</h4>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {student.weaknesses.map((w: string) => (
-                  <span key={w} className="badge badge-red text-xs">{w}</span>
-                ))}
+                {student.weaknesses.map((w: string) => <span key={w} className="badge badge-red text-xs">{w}</span>)}
               </div>
             </motion.div>
           )}
 
-          {/* Gruplar */}
           {student.groupStudents?.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="card p-4"
-            >
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="card p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Users className="w-4 h-4 text-brand-400" />
                 <h4 className="font-medium text-gray-900 dark:text-white text-sm">Gruplar</h4>
@@ -239,14 +245,8 @@ export default function StudentDetailPage() {
             </motion.div>
           )}
 
-          {/* Notlar */}
           {student.notes && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25 }}
-              className="card p-4"
-            >
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="card p-4">
               <div className="flex items-center gap-2 mb-3">
                 <FileText className="w-4 h-4 text-gray-400" />
                 <h4 className="font-medium text-gray-900 dark:text-white text-sm">Notlar</h4>
@@ -256,16 +256,10 @@ export default function StudentDetailPage() {
           )}
         </div>
 
-        {/* Sağ - Grafikler ve aktiviteler */}
+        {/* Sağ */}
         <div className="lg:col-span-2 space-y-4">
-          {/* Beceri haritası + İlerleme */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="card p-4"
-            >
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="card p-4">
               <h4 className="font-medium text-gray-900 dark:text-white text-sm mb-3">Beceri Profili</h4>
               <ResponsiveContainer width="100%" height={180}>
                 <RadarChart data={radarData}>
@@ -276,12 +270,7 @@ export default function StudentDetailPage() {
               </ResponsiveContainer>
             </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25 }}
-              className="card p-4"
-            >
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="card p-4">
               <h4 className="font-medium text-gray-900 dark:text-white text-sm mb-3">Gelişim Trendi</h4>
               <ResponsiveContainer width="100%" height={180}>
                 <AreaChart data={progressData}>
@@ -301,18 +290,10 @@ export default function StudentDetailPage() {
             </motion.div>
           </div>
 
-          {/* Son etkinlikler */}
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="card p-4"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4 text-gray-400" />
-                <h4 className="font-medium text-gray-900 dark:text-white text-sm">Son Etkinlikler</h4>
-              </div>
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="card p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Activity className="w-4 h-4 text-gray-400" />
+              <h4 className="font-medium text-gray-900 dark:text-white text-sm">Son Etkinlikler</h4>
             </div>
             <div className="space-y-2">
               {(student.studentLogs || []).slice(0, 6).map((log: any) => (
@@ -326,7 +307,7 @@ export default function StudentDetailPage() {
                     </p>
                     <p className="text-xs text-gray-400">{formatRelativeDate(log.activityLog?.date)}</p>
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
+                  <div className="flex items-center gap-0.5 flex-shrink-0">
                     {Array.from({ length: 5 }, (_, i) => (
                       <div key={i} className={cn('w-1.5 h-1.5 rounded-full', i < log.performance ? 'bg-brand-500' : 'bg-gray-200 dark:bg-gray-700')} />
                     ))}
@@ -339,43 +320,23 @@ export default function StudentDetailPage() {
             </div>
           </motion.div>
 
-          {/* Son geri bildirimler */}
           {(student.feedbacks || []).length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35 }}
-              className="card p-4"
-            >
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="card p-4">
               <div className="flex items-center gap-2 mb-4">
                 <MessageSquare className="w-4 h-4 text-gray-400" />
                 <h4 className="font-medium text-gray-900 dark:text-white text-sm">Son Geri Bildirim</h4>
               </div>
               {student.feedbacks.slice(0, 2).map((fb: any) => (
                 <div key={fb.id} className="p-4 bg-gradient-to-r from-brand-50 to-violet-50 dark:from-brand-900/20 dark:to-violet-900/20 rounded-xl mb-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-brand-700 dark:text-brand-300">{fb.period}</span>
-                    <span className={cn('badge text-[10px]',
-                      fb.status === 'GONDERILDI' ? 'badge-green' :
-                      fb.status === 'OKUNDU' ? 'badge-brand' : 'badge-gray'
-                    )}>
-                      {fb.status === 'GONDERILDI' ? 'Gönderildi' : fb.status === 'OKUNDU' ? 'Okundu' : 'Taslak'}
-                    </span>
-                  </div>
+                  <p className="text-xs font-medium text-brand-700 dark:text-brand-300 mb-1">{fb.period}</p>
                   <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-3">{fb.strengths}</p>
                 </div>
               ))}
             </motion.div>
           )}
 
-          {/* Gözlemler */}
           {observations.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="card p-4"
-            >
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="card p-4">
               <div className="flex items-center gap-2 mb-4">
                 <Brain className="w-4 h-4 text-gray-400" />
                 <h4 className="font-medium text-gray-900 dark:text-white text-sm">Gözlemler</h4>
