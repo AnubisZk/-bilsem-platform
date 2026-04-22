@@ -69,4 +69,27 @@ export class AuthService {
       data: { passwordHash: hash },
     });
   }
+
+  async studentLogin(studentId: string, password: string) {
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      include: { user: true },
+    });
+    if (!student || !student.user) {
+      throw new Error('Portal hesabı bulunamadı');
+    }
+    const bcrypt = require('bcryptjs');
+    const isValid = await bcrypt.compare(password, student.user.passwordHash);
+    if (!isValid) throw new Error('Şifre hatalı');
+
+    const payload = {
+      sub: student.user.id,
+      studentId: student.id,
+      role: 'STUDENT',
+      name: student.name,
+    };
+    const token = this.jwtService.sign(payload);
+    return { access_token: token, student };
+  }
+
 }

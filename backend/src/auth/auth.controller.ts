@@ -41,4 +41,10 @@ export class AuthController {
   changePassword(@Request() req, @Body() dto: ChangePasswordDto) {
     return this.authService.changePassword(req.user.id, dto.oldPassword, dto.newPassword);
   }
+
+  @Post('student-login')
+  studentLogin(@Body() body: { studentId: string; password: string }) {
+    return this.authService.studentLogin(body.studentId, body.password);
+  }
+
 }
