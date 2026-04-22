@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  NotFoundException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../common/prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
@@ -61,35 +65,68 @@ export class AuthService {
 
   async changePassword(userId: string, oldPass: string, newPass: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new NotFoundException('Kullanıcı bulunamadı');
+    }
+
     const valid = await bcrypt.compare(oldPass, user.passwordHash);
-    if (!valid) throw new UnauthorizedException('Mevcut şifre hatalı');
+    if (!valid) {
+      throw new UnauthorizedException('Mevcut şifre hatalı');
+    }
+
     const hash = await bcrypt.hash(newPass, 12);
+
     return this.prisma.user.update({
       where: { id: userId },
       data: { passwordHash: hash },
     });
   }
 
-  async studentLogin(studentId: string, password: string) {
-    const student = await this.prisma.student.findUnique({
-      where: { id: studentId },
-      include: { user: true },
+  async studentLogin(identifier: string, password: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: identifier },
+          { student: { id: identifier } },
+        ],
+      },
+      include: {
+        student: true,
+      },
     });
-    if (!student || !student.user) {
-      throw new Error('Portal hesabı bulunamadı');
+
+    if (!user || !user.student) {
+      throw new NotFoundException('Öğrenci bulunamadı');
     }
-    const bcrypt = require('bcryptjs');
-    const isValid = await bcrypt.compare(password, student.user.passwordHash);
-    if (!isValid) throw new Error('Şifre hatalı');
+
+    if (!user.passwordHash) {
+      throw new UnauthorizedException('Şifre bilgisi bulunamadı');
+    }
+
+    const isValid = await bcrypt.compare(password, user.passwordHash);
+
+    if (!isValid) {
+      throw new UnauthorizedException('Şifre hatalı');
+    }
 
     const payload = {
-      sub: student.user.id,
-      studentId: student.id,
+      sub: user.id,
+      studentId: user.student.id,
       role: 'STUDENT',
-      name: student.name,
+      name: user.student.name,
     };
-    const token = this.jwtService.sign(payload);
-    return { access_token: token, student };
-  }
 
+    const token = this.jwtService.sign(payload);
+
+    return {
+      access_token: token,
+      student: {
+        id: user.student.id,
+        name: user.student.name,
+        surname: user.student.surname,
+        email: user.email,
+      },
+    };
+  }
 }

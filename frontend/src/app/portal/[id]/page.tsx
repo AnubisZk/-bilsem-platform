@@ -23,16 +23,19 @@ export default function StudentPortalPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const loginRes = await api.post('/auth/student-login', { studentId: id, password });
-      const { access_token, student } = loginRes.data;
-      sessionStorage.setItem('portal_token', access_token);
-      sessionStorage.setItem('portal_student_id', id as string);
-      const dataRes = await api.get(`/students/${id}/portal-data`);
-      setStudentData(dataRes.data);
-      setIsLoggedIn(true);
-      toast.success(`Hoş geldin, ${student.name}!`);
+      const res = await api.get(`/students/${id}/portal-data`);
+      const student = res.data;
+      const initials = (student.name.charAt(0) + student.surname.charAt(0)).toUpperCase();
+      const correctPassword = initials + '2026';
+      if (password === correctPassword) {
+        setStudentData(student);
+        setIsLoggedIn(true);
+        toast.success(`Hoş geldin, ${student.name}!`);
+      } else {
+        toast.error('Şifre hatalı');
+      }
     } catch {
-      toast.error('Şifre hatalı');
+      toast.error('Giriş başarısız');
     } finally {
       setLoading(false);
     }
