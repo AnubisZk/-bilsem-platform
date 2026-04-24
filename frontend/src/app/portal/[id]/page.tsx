@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Brain, Lock, BookOpen, Clock,
-  MessageSquare, Star, ChevronDown, LogOut, Target, Calendar,
+  Brain, Lock, BookOpen, Clock, MessageSquare, Star,
+  ChevronDown, LogOut, Target, Calendar, CheckCircle,
+  FileText, TrendingUp, X, Save,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { cn, getInitials, formatRelativeDate } from '@/lib/utils';
@@ -13,25 +14,202 @@ import toast from 'react-hot-toast';
 
 const STORAGE_KEY = 'bilsem_portal_session';
 
+// ─── PROGRESS FORM ───────────────────────────────────────────────────────────
+function ProgressForm({ item, studentId, token, onSave }: any) {
+  const existing = item.progress?.[0] || {};
+  const [form, setForm] = useState({
+    isCompleted: existing.isCompleted || false,
+    solvedCount: existing.solvedCount || 0,
+    correctCount: existing.correctCount || 0,
+    wrongCount: existing.wrongCount || 0,
+    blankCount: existing.blankCount || 0,
+    difficultyLevel: existing.difficultyLevel || '',
+    studentNote: existing.studentNote || '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  const successRate = form.solvedCount > 0 ? Math.round((form.correctCount / form.solvedCount) * 100) : 0;
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await api.put(`/portal/plan-items/${item.id}/progress`, form, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      toast.success('Kaydedildi!');
+      onSave();
+    } catch { toast.error('Kaydedilemedi'); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className="mt-3 p-4 bg-white dark:bg-gray-900 rounded-xl border border-black/[0.06] dark:border-white/[0.06] space-y-3">
+      {/* Tamamlandı toggle */}
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tamamlandı</label>
+        <button
+          onClick={() => setForm({...form, isCompleted: !form.isCompleted})}
+          className={cn('w-12 h-6 rounded-full transition-colors relative', form.isCompleted ? 'bg-emerald-500' : 'bg-gray-200 dark:bg-gray-700')}
+        >
+          <div className={cn('w-5 h-5 rounded-full bg-white shadow absolute top-0.5 transition-transform', form.isCompleted ? 'translate-x-6' : 'translate-x-0.5')} />
+        </button>
+      </div>
+
+      {/* Soru sayıları */}
+      <div className="grid grid-cols-4 gap-2">
+        {[
+          { label: 'Çözdüm', key: 'solvedCount', color: 'brand' },
+          { label: 'Doğru', key: 'correctCount', color: 'emerald' },
+          { label: 'Yanlış', key: 'wrongCount', color: 'red' },
+          { label: 'Boş', key: 'blankCount', color: 'gray' },
+        ].map(({ label, key, color }) => (
+          <div key={key}>
+            <label className="text-[10px] text-gray-500 block mb-1">{label}</label>
+            <input
+              type="number"
+              min="0"
+              value={(form as any)[key]}
+              onChange={(e) => setForm({...form, [key]: Number(e.target.value)})}
+              className="w-full text-center text-sm font-bold p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:border-brand-400"
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Başarı oranı */}
+      {form.solvedCount > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-gray-500">Başarı Oranı</span>
+            <span className={cn('text-xs font-bold', successRate >= 80 ? 'text-emerald-500' : successRate >= 60 ? 'text-amber-500' : 'text-red-500')}>%{successRate}</span>
+          </div>
+          <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2">
+            <div className={cn('rounded-full h-2 transition-all', successRate >= 80 ? 'bg-emerald-500' : successRate >= 60 ? 'bg-amber-500' : 'bg-red-500')} style={{ width: `${successRate}%` }} />
+          </div>
+        </div>
+      )}
+
+      {/* Zorluk */}
+      <div>
+        <label className="text-xs text-gray-500 block mb-1.5">Bu konu benim için...</label>
+        <div className="flex gap-2">
+          {['KOLAY', 'ORTA', 'ZOR'].map((d) => (
+            <button key={d} onClick={() => setForm({...form, difficultyLevel: d})}
+              className={cn('flex-1 py-1.5 rounded-lg text-xs font-medium transition-all',
+                form.difficultyLevel === d
+                  ? d === 'KOLAY' ? 'bg-emerald-500 text-white' : d === 'ORTA' ? 'bg-amber-500 text-white' : 'bg-red-500 text-white'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-500'
+              )}
+            >
+              {d === 'KOLAY' ? '😊 Kolay' : d === 'ORTA' ? '🤔 Orta' : '😓 Zor'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Not */}
+      <div>
+        <label className="text-xs text-gray-500 block mb-1">Notum</label>
+        <textarea value={form.studentNote} onChange={(e) => setForm({...form, studentNote: e.target.value})}
+          className="w-full text-xs p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 resize-none focus:outline-none focus:border-brand-400"
+          rows={2} placeholder="Bu konuda notlarım..." />
+      </div>
+
+      <button onClick={handleSave} disabled={saving} className="btn-primary w-full justify-center text-sm py-2">
+        <Save className="w-4 h-4" /> {saving ? 'Kaydediliyor...' : 'Kaydet'}
+      </button>
+    </div>
+  );
+}
+
+// ─── PLAN ITEM ───────────────────────────────────────────────────────────────
+function PlanItem({ item, studentId, token, onUpdate }: any) {
+  const [showForm, setShowForm] = useState(false);
+  const prog = item.progress?.[0];
+  const isCompleted = prog?.isCompleted;
+  const successRate = prog?.solvedCount > 0 ? Math.round((prog.correctCount / prog.solvedCount) * 100) : null;
+
+  return (
+    <div className={cn('border rounded-xl overflow-hidden transition-all', isCompleted ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-900/10' : 'border-black/[0.06] dark:border-white/[0.06]')}>
+      <div className="flex items-center gap-3 p-4">
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className={cn('w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all',
+            isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300 dark:border-gray-600 hover:border-brand-400'
+          )}
+        >
+          {isCompleted && <CheckCircle className="w-4 h-4" />}
+        </button>
+        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setShowForm(!showForm)}>
+          <p className={cn('text-sm font-medium', isCompleted ? 'text-emerald-700 dark:text-emerald-300 line-through' : 'text-gray-900 dark:text-white')}>{item.topic}</p>
+          {item.subtopic && <p className="text-xs text-gray-400 mt-0.5">{item.subtopic}</p>}
+          <div className="flex items-center gap-3 mt-1">
+            <span className="text-[10px] text-gray-400 flex items-center gap-1"><Clock className="w-3 h-3" />{item.suggestedDuration} dk</span>
+            {item.estimatedQuestionCount > 0 && <span className="text-[10px] text-gray-400">{item.estimatedQuestionCount} soru</span>}
+            {prog?.solvedCount > 0 && <span className="text-[10px] text-brand-500 font-medium">{prog.solvedCount} çözüldü</span>}
+            {successRate !== null && (
+              <span className={cn('text-[10px] font-medium', successRate >= 80 ? 'text-emerald-500' : successRate >= 60 ? 'text-amber-500' : 'text-red-500')}>%{successRate}</span>
+            )}
+            {prog?.difficultyLevel && (
+              <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full',
+                prog.difficultyLevel === 'KOLAY' ? 'bg-emerald-100 text-emerald-600' :
+                prog.difficultyLevel === 'ORTA' ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'
+              )}>
+                {prog.difficultyLevel === 'KOLAY' ? '😊' : prog.difficultyLevel === 'ORTA' ? '🤔' : '😓'}
+              </span>
+            )}
+          </div>
+        </div>
+        <ChevronDown className={cn('w-4 h-4 text-gray-400 transition-transform flex-shrink-0', showForm && 'rotate-180')} />
+      </div>
+
+      {item.teacherNote && (
+        <div className="px-4 pb-3">
+          <p className="text-[10px] text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 rounded-lg p-2">
+            📌 Öğretmen notu: {item.teacherNote}
+          </p>
+        </div>
+      )}
+
+      {prog?.teacherFeedback && (
+        <div className="px-4 pb-3">
+          <p className="text-[10px] text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20 rounded-lg p-2">
+            💬 Geri bildirim: {prog.teacherFeedback}
+          </p>
+        </div>
+      )}
+
+      <AnimatePresence>
+        {showForm && (
+          <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden px-4 pb-4">
+            <ProgressForm item={item} studentId={studentId} token={token} onSave={onUpdate} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ─── ANA SAYFA ───────────────────────────────────────────────────────────────
 export default function StudentPortalPage() {
   const params = useParams();
   const id = params.id as string;
   const [password, setPassword] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [studentData, setStudentData] = useState<any>(null);
+  const [resources, setResources] = useState<any[]>([]);
+  const [token, setToken] = useState('');
   const [loading, setLoading] = useState(true);
   const [loginLoading, setLoginLoading] = useState(false);
-  const [expandedWeek, setExpandedWeek] = useState<number | null>(1);
+  const [expandedResource, setExpandedResource] = useState<string | null>(null);
 
-  // Sayfa açılınca localStorage'dan oturum kontrol et
   useEffect(() => {
     const session = localStorage.getItem(STORAGE_KEY);
     if (session) {
       try {
         const parsed = JSON.parse(session);
-        // Sadece aynı öğrencinin oturumu geçerli
         if (parsed.studentId === id && parsed.token) {
-          fetchPortalData(parsed.token);
+          fetchData(parsed.token);
           return;
         }
       } catch {}
@@ -39,19 +217,19 @@ export default function StudentPortalPage() {
     setLoading(false);
   }, [id]);
 
-  async function fetchPortalData(token: string) {
+  async function fetchData(tkn: string) {
     try {
-      const res = await api.get(`/students/${id}/portal-data`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setStudentData(res.data);
+      const [studentRes, resourcesRes] = await Promise.all([
+        api.get(`/students/${id}/portal-data`),
+        api.get('/portal/resources', { headers: { Authorization: `Bearer ${tkn}` } }),
+      ]);
+      setStudentData(studentRes.data);
+      setResources(resourcesRes.data);
+      setToken(tkn);
       setIsLoggedIn(true);
     } catch {
-      // Token geçersiz, oturumu temizle
       localStorage.removeItem(STORAGE_KEY);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }
 
   async function handleLogin(e: any) {
@@ -59,103 +237,72 @@ export default function StudentPortalPage() {
     setLoginLoading(true);
     try {
       const loginRes = await api.post('/auth/student-login', { studentId: id, password });
-      const { access_token, student } = loginRes.data;
+      const { access_token } = loginRes.data;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ studentId: id, token: access_token }));
+      await fetchData(access_token);
+      toast.success('Hoş geldin!');
+    } catch { toast.error('Şifre hatalı'); }
+    finally { setLoginLoading(false); }
+  }
 
-      // localStorage'a kaydet
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        studentId: id,
-        token: access_token,
-      }));
-
-      await fetchPortalData(access_token);
-      toast.success(`Hoş geldin, ${student.name}!`);
-    } catch {
-      toast.error('Şifre hatalı');
-    } finally {
-      setLoginLoading(false);
-    }
+  async function refreshResources() {
+    try {
+      const res = await api.get('/portal/resources', { headers: { Authorization: `Bearer ${token}` } });
+      setResources(res.data);
+    } catch {}
   }
 
   function handleLogout() {
     localStorage.removeItem(STORAGE_KEY);
-    setIsLoggedIn(false);
-    setStudentData(null);
-    setPassword('');
+    setIsLoggedIn(false); setStudentData(null); setPassword(''); setToken(''); setResources([]);
   }
 
-  // Yükleniyor
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-50 via-white to-violet-50">
-        <div className="text-center">
-          <div className="w-10 h-10 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-gray-400">Yükleniyor...</p>
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-50 via-white to-violet-50">
+      <div className="text-center"><div className="w-10 h-10 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" /><p className="text-sm text-gray-400">Yükleniyor...</p></div>
+    </div>
+  );
+
+  if (!isLoggedIn) return (
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-violet-50 flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-brand-500 to-violet-500 rounded-2xl mb-4 shadow-lg">
+            <Brain className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold font-display text-gray-900">BİLSEM Öğrenci Portalı</h1>
+          <p className="text-gray-500 text-sm mt-1">Öğrenci girişi</p>
         </div>
-      </div>
-    );
-  }
-
-  // Login ekranı
-  if (!isLoggedIn) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-violet-50 flex items-center justify-center p-4">
-        <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-brand-500 to-violet-500 rounded-2xl mb-4 shadow-lg">
-              <Brain className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold font-display text-gray-900">BİLSEM Öğrenci Portalı</h1>
-            <p className="text-gray-500 text-sm mt-1">Öğrenci girişi</p>
-          </div>
-          <div className="card p-6">
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="label">Şifre</label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="input-field pl-10"
-                    placeholder="••••••••"
-                    required
-                  />
-                </div>
-                <p className="text-xs text-gray-400 mt-1.5">Şifreniz: Ad ve soyadınızın baş harfleri + 2026</p>
+        <div className="card p-6">
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="label">Şifre</label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="input-field pl-10" placeholder="••••••••" required />
               </div>
-              <button type="submit" disabled={loginLoading} className="btn-primary w-full justify-center py-3">
-                {loginLoading ? (
-                  <span className="flex items-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Giriş yapılıyor...
-                  </span>
-                ) : 'Giriş Yap'}
-              </button>
-            </form>
-          </div>
-          <p className="text-center text-xs text-gray-400 mt-4">Altıeylül BİLSEM • Öğrenci Portalı</p>
-        </motion.div>
-      </div>
-    );
-  }
+              <p className="text-xs text-gray-400 mt-1.5">Şifreniz: Ad soyadınızın baş harfleri + 2026</p>
+            </div>
+            <button type="submit" disabled={loginLoading} className="btn-primary w-full justify-center py-3">
+              {loginLoading ? <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Giriş yapılıyor...</span> : 'Giriş Yap'}
+            </button>
+          </form>
+        </div>
+        <p className="text-center text-xs text-gray-400 mt-4">Altıeylül BİLSEM • Öğrenci Portalı</p>
+      </motion.div>
+    </div>
+  );
 
-  // Portal içeriği
-  const plan = studentData?.groupStudents?.[0]?.group?.plans?.[0];
-  const planItems: any[] = plan?.planItems || [];
-  const weekSet = new Set<number>();
-  planItems.forEach((item: any) => weekSet.add(Number(item.week)));
-  const weeks = Array.from(weekSet).sort((a, b) => a - b);
   const totalActivities = studentData?.studentLogs?.length || 0;
-  const avgPerf = totalActivities > 0
-    ? studentData.studentLogs.reduce((s: number, l: any) => s + l.performance, 0) / totalActivities
-    : 0;
+  const avgPerf = totalActivities > 0 ? studentData.studentLogs.reduce((s: number, l: any) => s + l.performance, 0) / totalActivities : 0;
+  const totalTopics = resources.reduce((s: number, r: any) => s + (r.aiPlan?.planItems?.length || 0), 0);
+  const completedTopics = resources.reduce((s: number, r: any) => s + (r.aiPlan?.planItems?.filter((i: any) => i.progress?.[0]?.isCompleted).length || 0), 0);
+  const overallProgress = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-[#f5f5f3]">
-      {/* Header */}
       <header className="bg-white border-b border-black/[0.06] sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="max-w-2xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-gradient-to-br from-brand-500 to-violet-500 rounded-lg flex items-center justify-center">
               <Brain className="w-4 h-4 text-white" />
@@ -165,13 +312,11 @@ export default function StudentPortalPage() {
               <p className="text-xs text-gray-400">{studentData.name} {studentData.surname}</p>
             </div>
           </div>
-          <button onClick={handleLogout} className="btn-ghost py-1.5 px-3 text-sm text-red-400">
-            <LogOut className="w-4 h-4" /> Çıkış
-          </button>
+          <button onClick={handleLogout} className="btn-ghost py-1.5 px-3 text-sm text-red-400"><LogOut className="w-4 h-4" /> Çıkış</button>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-5">
+      <main className="max-w-2xl mx-auto px-4 py-6 space-y-5">
         {/* Karşılama */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card p-5">
           <div className="flex items-center gap-4">
@@ -183,127 +328,106 @@ export default function StudentPortalPage() {
               <p className="text-sm text-gray-500">{studentData.school} • {studentData.grade}. Sınıf • {studentData.mathLevel}</p>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3 mt-5 pt-5 border-t border-black/[0.04]">
-            <div className="text-center">
-              <p className="text-xl font-bold font-display text-brand-500">{totalActivities}</p>
-              <p className="text-xs text-gray-400">Etkinlik</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xl font-bold font-display text-emerald-500">{avgPerf.toFixed(1)}/5</p>
-              <p className="text-xs text-gray-400">Performans</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xl font-bold font-display text-amber-500">{weeks.length}</p>
-              <p className="text-xs text-gray-400">Hafta</p>
-            </div>
+          <div className="grid grid-cols-4 gap-3 mt-5 pt-5 border-t border-black/[0.04]">
+            <div className="text-center"><p className="text-xl font-bold font-display text-brand-500">{totalActivities}</p><p className="text-xs text-gray-400">Etkinlik</p></div>
+            <div className="text-center"><p className="text-xl font-bold font-display text-emerald-500">{avgPerf.toFixed(1)}/5</p><p className="text-xs text-gray-400">Performans</p></div>
+            <div className="text-center"><p className="text-xl font-bold font-display text-amber-500">{completedTopics}/{totalTopics}</p><p className="text-xs text-gray-400">Konu</p></div>
+            <div className="text-center"><p className="text-xl font-bold font-display text-violet-500">%{overallProgress}</p><p className="text-xs text-gray-400">İlerleme</p></div>
           </div>
+          {totalTopics > 0 && (
+            <div className="mt-4">
+              <div className="w-full bg-gray-100 rounded-full h-2">
+                <div className="bg-gradient-to-r from-brand-500 to-violet-500 rounded-full h-2 transition-all" style={{ width: `${overallProgress}%` }} />
+              </div>
+            </div>
+          )}
         </motion.div>
 
-        {/* Çalışma Planı */}
-        {plan ? (
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="card p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <Calendar className="w-4 h-4 text-brand-500" />
-              <h3 className="font-semibold text-gray-900">Çalışma Planım</h3>
-              <span className="badge badge-brand text-xs ml-auto">{plan.title}</span>
-            </div>
-            <div className="space-y-2">
-              {weeks.map((week: number) => {
-                const weekItems = planItems.filter((item: any) => Number(item.week) === week);
-                const isExpanded = expandedWeek === week;
-                return (
-                  <div key={week} className="border border-black/[0.06] rounded-xl overflow-hidden">
-                    <button
-                      onClick={() => setExpandedWeek(isExpanded ? null : week)}
-                      className="w-full flex items-center gap-3 px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="w-7 h-7 bg-brand-500 text-white rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0">{week}</div>
-                      <span className="font-medium text-sm text-gray-900">{week}. Hafta</span>
-                      <span className="text-xs text-gray-400 ml-auto">{weekItems.length} konu</span>
-                      <ChevronDown className={cn('w-4 h-4 text-gray-400 transition-transform', isExpanded && 'rotate-180')} />
-                    </button>
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
-                          <div className="divide-y divide-black/[0.04]">
-                            {weekItems.map((item: any) => (
-                              <div key={item.id} className="px-4 py-3">
-                                <div className="flex items-start gap-3">
-                                  <Target className="w-4 h-4 text-brand-400 flex-shrink-0 mt-0.5" />
-                                  <div className="flex-1">
-                                    <p className="text-sm font-medium text-gray-800">{item.topic}</p>
-                                    {(item.objectives || []).slice(0, 2).map((obj: string, i: number) => (
-                                      <p key={i} className="text-xs text-gray-400 mt-0.5">• {obj}</p>
-                                    ))}
-                                    {item.activity && (
-                                      <div className="mt-2 p-2 bg-brand-50 rounded-lg">
-                                        <p className="text-xs text-brand-600 flex items-center gap-1">
-                                          <BookOpen className="w-3 h-3" />{item.activity.title}
-                                        </p>
-                                      </div>
-                                    )}
-                                  </div>
-                                  <span className="text-xs text-gray-400 flex-shrink-0 flex items-center gap-1">
-                                    <Clock className="w-3 h-3" />{item.duration} dk
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+        {/* Kaynaklar ve Planlar */}
+        {resources.length > 0 ? (
+          <div className="space-y-4">
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2"><FileText className="w-4 h-4 text-brand-500" /> Çalışma Planlarım</h3>
+            {resources.map((resource: any) => {
+              const plan = resource.aiPlan;
+              if (!plan) return null;
+              const items = plan.planItems || [];
+              const completed = items.filter((i: any) => i.progress?.[0]?.isCompleted).length;
+              const progress = items.length ? Math.round((completed / items.length) * 100) : 0;
+              const isExpanded = expandedResource === resource.id;
+
+              return (
+                <motion.div key={resource.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="card overflow-hidden">
+                  <div className="p-4 cursor-pointer" onClick={() => setExpandedResource(isExpanded ? null : resource.id)}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-brand-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <FileText className="w-5 h-5 text-brand-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{plan.title || resource.fileName}</p>
+                        {plan.summary && <p className="text-xs text-gray-400 truncate">{plan.summary}</p>}
+                      </div>
+                      <ChevronDown className={cn('w-4 h-4 text-gray-400 transition-transform flex-shrink-0', isExpanded && 'rotate-180')} />
+                    </div>
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-400">{completed}/{items.length} konu tamamlandı</span>
+                        <span className="text-xs font-medium text-brand-500">%{progress}</span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-1.5">
+                        <div className="bg-brand-500 rounded-full h-1.5 transition-all" style={{ width: `${progress}%` }} />
+                      </div>
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-          </motion.div>
+
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
+                        <div className="px-4 pb-4 space-y-2 border-t border-black/[0.04]">
+                          <p className="text-xs text-gray-400 pt-3">Her konuya tıklayarak ilerlemenizi kaydedin</p>
+                          {items.map((item: any) => (
+                            <PlanItem key={item.id} item={item} studentId={id} token={token} onUpdate={refreshResources} />
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              );
+            })}
+          </div>
         ) : (
           <div className="card p-8 text-center text-gray-400">
-            <Calendar className="w-10 h-10 mx-auto mb-2 opacity-30" />
+            <FileText className="w-10 h-10 mx-auto mb-2 opacity-30" />
             <p className="font-medium">Henüz çalışma planı atanmadı</p>
-            <p className="text-sm mt-1">Öğretmeniniz yakında bir plan oluşturacak</p>
+            <p className="text-sm mt-1">Öğretmeniniz yakında bir kaynak ekleyecek</p>
           </div>
         )}
 
-        {/* Etkinlikler */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="card p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <BookOpen className="w-4 h-4 text-brand-500" />
-            <h3 className="font-semibold text-gray-900">Etkinliklerim</h3>
-          </div>
-          <div className="space-y-2">
-            {(studentData.studentLogs || []).slice(0, 8).map((log: any) => (
-              <div key={log.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                <div className="w-8 h-8 bg-brand-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <BookOpen className="w-4 h-4 text-brand-500" />
+        {/* Son Etkinlikler */}
+        {(studentData.studentLogs || []).length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="card p-5">
+            <div className="flex items-center gap-2 mb-4"><BookOpen className="w-4 h-4 text-brand-500" /><h3 className="font-semibold text-gray-900">Etkinliklerim</h3></div>
+            <div className="space-y-2">
+              {studentData.studentLogs.slice(0, 6).map((log: any) => (
+                <div key={log.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                  <div className="w-8 h-8 bg-brand-50 rounded-lg flex items-center justify-center flex-shrink-0"><BookOpen className="w-4 h-4 text-brand-500" /></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{log.activityLog?.activity?.title || log.activityLog?.topic}</p>
+                    <p className="text-xs text-gray-400">{formatRelativeDate(log.activityLog?.date)}</p>
+                  </div>
+                  <div className="flex items-center gap-0.5">
+                    {Array.from({ length: 5 }, (_, i) => <Star key={i} className={cn('w-3 h-3', i < log.performance ? 'text-amber-400 fill-amber-400' : 'text-gray-200')} />)}
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">
-                    {log.activityLog?.activity?.title || log.activityLog?.topic}
-                  </p>
-                  <p className="text-xs text-gray-400">{formatRelativeDate(log.activityLog?.date)}</p>
-                </div>
-                <div className="flex items-center gap-0.5 flex-shrink-0">
-                  {Array.from({ length: 5 }, (_, i) => (
-                    <Star key={i} className={cn('w-3 h-3', i < log.performance ? 'text-amber-400 fill-amber-400' : 'text-gray-200')} />
-                  ))}
-                </div>
-              </div>
-            ))}
-            {(studentData.studentLogs || []).length === 0 && (
-              <p className="text-sm text-gray-400 text-center py-6">Henüz etkinlik kaydın yok</p>
-            )}
-          </div>
-        </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {/* Geri Bildirimler */}
         {(studentData.feedbacks || []).length > 0 && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="card p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <MessageSquare className="w-4 h-4 text-brand-500" />
-              <h3 className="font-semibold text-gray-900">Öğretmen Geri Bildirimleri</h3>
-            </div>
+            <div className="flex items-center gap-2 mb-4"><MessageSquare className="w-4 h-4 text-brand-500" /><h3 className="font-semibold text-gray-900">Öğretmen Geri Bildirimleri</h3></div>
             {studentData.feedbacks.map((fb: any) => (
               <div key={fb.id} className="p-4 bg-gradient-to-r from-brand-50 to-violet-50 rounded-xl mb-3">
                 <p className="text-xs font-semibold text-brand-600 mb-2">{fb.period}</p>
@@ -311,9 +435,7 @@ export default function StudentPortalPage() {
                 <p className="text-xs text-gray-700 leading-relaxed mb-2">{fb.strengths}</p>
                 <p className="text-[10px] font-semibold uppercase text-amber-600 mb-1">Gelişim Alanların</p>
                 <p className="text-xs text-gray-700 leading-relaxed">{fb.improvements}</p>
-                {fb.motivation && (
-                  <p className="text-xs text-brand-700 italic mt-2 p-2 bg-white/50 rounded-lg">💬 {fb.motivation}</p>
-                )}
+                {fb.motivation && <p className="text-xs text-brand-700 italic mt-2 p-2 bg-white/50 rounded-lg">💬 {fb.motivation}</p>}
               </div>
             ))}
           </motion.div>
