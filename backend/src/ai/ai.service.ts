@@ -275,4 +275,16 @@ SADECE su JSON formatinda yanit ver, baska hicbir sey yazma:
     return { title: 'Calisma Plani', summary: '', totalQuestions: 0, items: [] };
   }
 
+
+  async generateResourcePlan(text: string, student: { studentName: string; mathLevel: string; level: any }): Promise<any> {
+    const systemPrompt = "Sen BİLSEM matematik kaynakları analiz eden ve öğrenciye özel çalışma planı oluşturan uzmansın. Her zaman Türkçe JSON formatında yanıt verirsin.";
+    const prompt = "Su kaynak metnini analiz et ve " + student.studentName + " icin (Matematik seviyesi: " + student.mathLevel + ") kisisellestirilmis calisma plani olustur.\n\nKaynak:\n" + text.slice(0, 6000) + "\n\nSADECE JSON formatinda yanit ver:{\"title\":\"Plan\",\"summary\":\"ozet\",\"totalQuestions\":50,\"items\":[{\"topic\":\"konu\",\"subtopic\":\"alt\",\"description\":\"aciklama\",\"questionCount\":10,\"duration\":30,\"teacherNote\":\"not\",\"goal\":\"hedef\"}]}";
+    const raw = await this.callClaude(prompt, systemPrompt);
+    try {
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (jsonMatch) return JSON.parse(jsonMatch[0]);
+    } catch {}
+    return { title: "Calisma Plani", summary: "", totalQuestions: 0, items: [] };
+  }
+
 }
