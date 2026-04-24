@@ -86,6 +86,7 @@ model Teacher {
   notebooks       TeacherNote[]
   uploads         TeacherUpload[]
   exams           Exam[]
+  assignedResources StudentResource[]
 }
 
 // ─── ÖĞRENCİ ──────────────────────────────────────────────────────────
@@ -109,6 +110,7 @@ model Student {
   parent         Parent?  @relation(fields: [parentId], references: [id])
   notes          String?
   photo          String?
+  avatarUrl      String?
   isActive       Boolean  @default(true)
   enrolledAt     DateTime @default(now())
   createdAt      DateTime @default(now())
@@ -120,6 +122,7 @@ model Student {
   observations    Observation[]
   examResults     ExamResult[]
   progressRecords ProgressRecord[]
+  resources       StudentResource[]
 }
 
 // ─── VELİ ─────────────────────────────────────────────────────────────
@@ -423,6 +426,93 @@ model ProgressRecord {
   level     String   // Başlangıç / Gelişen / İleri / Üstün
   notes     String?
   date      DateTime @default(now())
+}
+
+// ─── ÖĞRENCİ KAYNAK ATAMA ─────────────────────────────────────────────
+
+enum ResourceStatus {
+  ATANDI
+  DEVAM_EDIYOR
+  TAMAMLANDI
+  GECIKTI
+}
+
+enum DifficultyLevel {
+  KOLAY
+  ORTA
+  ZOR
+}
+
+model StudentResource {
+  id          String         @id @default(cuid())
+  studentId   String
+  student     Student        @relation(fields: [studentId], references: [id])
+  teacherId   String
+  teacher     Teacher        @relation(fields: [teacherId], references: [id])
+  fileName    String
+  fileType    String         // "pdf", "docx", "image"
+  driveFileId String
+  driveUrl    String
+  assignedAt  DateTime       @default(now())
+  dueDate     DateTime?
+  status      ResourceStatus @default(ATANDI)
+  isVisible   Boolean        @default(false) // Öğretmen onayından sonra true
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  aiPlan      ResourceAiPlan?
+}
+
+model ResourceAiPlan {
+  id                     String           @id @default(cuid())
+  resourceId             String           @unique
+  resource               StudentResource  @relation(fields: [resourceId], references: [id])
+  studentId              String
+  title                  String
+  summary                String?
+  totalEstimatedQuestions Int             @default(0)
+  generatedByAI          Boolean          @default(true)
+  isApproved             Boolean          @default(false)
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  planItems              ResourcePlanItem[]
+}
+
+model ResourcePlanItem {
+  id                    String          @id @default(cuid())
+  planId                String
+  plan                  ResourceAiPlan  @relation(fields: [planId], references: [id])
+  topic                 String
+  subtopic              String?
+  description           String?
+  estimatedQuestionCount Int            @default(0)
+  suggestedDuration     Int             @default(30) // dakika
+  orderIndex            Int             @default(0)
+  teacherNote           String?
+  studentGoal           String?
+  createdAt             DateTime        @default(now())
+
+  progress              StudentPlanProgress[]
+}
+
+model StudentPlanProgress {
+  id             String           @id @default(cuid())
+  planItemId     String
+  planItem       ResourcePlanItem @relation(fields: [planItemId], references: [id])
+  studentId      String
+  isCompleted    Boolean          @default(false)
+  completedAt    DateTime?
+  solvedCount    Int              @default(0)
+  correctCount   Int              @default(0)
+  wrongCount     Int              @default(0)
+  blankCount     Int              @default(0)
+  difficultyLevel DifficultyLevel?
+  studentNote    String?
+  teacherFeedback String?
+  updatedAt      DateTime         @updatedAt
+
+  @@unique([planItemId, studentId])
 }
 
 // ─── ÖĞRETMEN NOT DEFTERİ ─────────────────────────────────────────────
