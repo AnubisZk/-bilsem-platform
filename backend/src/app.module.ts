@@ -12,6 +12,7 @@ import { PlansModule } from './plans/plans.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { ReportsModule } from './reports/reports.module';
 import { AiModule } from './ai/ai.module';
+import { ResourcesModule } from './resources/resources.module';
 import { GdriveModule } from './gdrive/gdrive.module';
 
 @Module({
@@ -30,6 +31,7 @@ import { GdriveModule } from './gdrive/gdrive.module';
     ReportsModule,
     AiModule,
     GdriveModule,
+    ResourcesModule,
   ],
 })
 export class AppModule {}

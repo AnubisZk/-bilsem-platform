@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
-import * as bcrypt from 'bcryptjs';
 import { IsString, IsNumber, IsEnum, IsOptional, IsArray } from 'class-validator';
 import { Level } from '@prisma/client';
 
@@ -24,7 +23,7 @@ export class StudentsService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(teacherId?: string, groupId?: string) {
-    const where: any = { isActive: true };
+    const where: any = {};
     if (groupId) {
       where.groupStudents = { some: { groupId } };
     }
@@ -145,67 +144,27 @@ export class StudentsService {
     return { total, active, byLevel, byGrade };
   }
 
-  async createPortalAccount(studentId: string) {
-    const student = await this.prisma.student.findUnique({ where: { id: studentId } });
-    if (!student) throw new Error('Öğrenci bulunamadı');
-
-    // Otomatik şifre: AdSoyad2026
-    const initials = (student.name.charAt(0) + student.surname.charAt(0)).toUpperCase();
-    const password = initials + '2026';
-    const hash = await bcrypt.hash(password, 12);
-    const email = student.studentCode.toLowerCase() + '@bilsem.edu.tr';
-
-    const existing = await this.prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      return { email, password, exists: true };
-    }
-
-    await this.prisma.user.create({
-      data: {
-        email,
-        passwordHash: hash,
-        name: student.name + ' ' + student.surname,
-        role: 'STUDENT',
-        student: { connect: { id: studentId } },
-      },
+  async uploadAvatar(studentId: string, file: any) {
+    if (!file) throw new Error('Dosya bulunamadi');
+    const fs = require('fs');
+    const path = require('path');
+    const uploadDir = './uploads/avatars';
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+    const ext = file.originalname.split('.').pop();
+    const filename = `${studentId}-${Date.now()}.${ext}`;
+    const filepath = path.join(uploadDir, filename);
+    fs.writeFileSync(filepath, file.buffer);
+    const avatarUrl = `/uploads/avatars/${filename}`;
+    return this.prisma.student.update({
+      where: { id: studentId },
+      data: { avatarUrl },
     });
-
-    return { email, password, exists: false };
   }
 
-  async getPortalData(studentId: string) {
-    return this.prisma.student.findUnique({
+  async deleteAvatar(studentId: string) {
+    return this.prisma.student.update({
       where: { id: studentId },
-      include: {
-        groupStudents: {
-          include: {
-            group: {
-              include: {
-                plans: {
-                  include: {
-                    planItems: {
-                      include: { activity: true },
-                      orderBy: [{ week: 'asc' }, { order: 'asc' }],
-                    },
-                  },
-                  orderBy: { createdAt: 'desc' },
-                  take: 1,
-                },
-              },
-            },
-          },
-        },
-        studentLogs: {
-          include: { activityLog: { include: { activity: true } } },
-          orderBy: { activityLog: { date: 'desc' } },
-          take: 20,
-        },
-        feedbacks: {
-          where: { status: 'GONDERILDI' },
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-        },
-      },
+      data: { avatarUrl: null },
     });
   }
 

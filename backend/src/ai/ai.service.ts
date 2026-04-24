@@ -24,35 +24,151 @@ export class AiService {
         messages: [{ role: 'user', content: prompt }],
       }),
     });
+
     const data: any = await response.json();
     return data.content?.[0]?.text || '';
   }
 
-  async generateQuestions(params: any): Promise<any[]> {
-    const systemPrompt = 'Sen BILSEM matematik ogretmenlerine yardim eden uzman bir matematik egitimcisisin. Her zaman JSON formatinda, Turkce sorular uretirsin.';
-    const prompt = params.count + ' adet ' + params.topic + ' konusunda ' + params.difficulty + ' seviyede soru uret. Yaniti SADECE JSON dizisi olarak ver: [{"title":"","body":"","options":null,"correctAnswer":"","solution":"","topic":"' + params.topic + '","gradeLevel":"' + params.gradeLevel + '","difficulty":"' + params.difficulty + '","type":"' + params.type + '","tags":[],"duration":180}]';
+  // ─── SORU ÜRETİCİ ────────────────────────────────────────────────────
+
+  async generateQuestions(params: {
+    topic: string;
+    subTopic?: string;
+    gradeLevel: string;
+    difficulty: string;
+    type: string;
+    count: number;
+    additionalContext?: string;
+  }): Promise<any[]> {
+    const systemPrompt = `Sen BİLSEM (Bilim ve Sanat Merkezi) matematik öğretmenlerine yardım eden uzman bir matematik eğitimcisisin.
+Türkiye BİLSEM müfredatını, üst düzey matematik eğitimini ve olimpiyat matematik sorularını çok iyi biliyorsun.
+Her zaman JSON formatında, Türkçe sorular üretirsin.
+Soruların pedagojik değeri yüksek, düşündürücü ve BİLSEM öğrencileri için uygun olmasını sağlarsın.`;
+
+    const prompt = `Aşağıdaki özelliklerde ${params.count} adet matematik sorusu üret:
+
+Konu: ${params.topic}
+${params.subTopic ? `Alt Konu: ${params.subTopic}` : ''}
+Sınıf Seviyesi: ${params.gradeLevel}
+Zorluk: ${params.difficulty}
+Soru Tipi: ${params.type}
+${params.additionalContext ? `Ek Bağlam: ${params.additionalContext}` : ''}
+
+Yanıtını SADECE aşağıdaki JSON formatında ver, başka hiçbir metin ekleme:
+[
+  {
+    "title": "Soru başlığı",
+    "body": "Soru metni (tam ve net)",
+    "options": null veya {"A": "...", "B": "...", "C": "...", "D": "..."} (çoktan seçmeli ise),
+    "correctAnswer": "Doğru cevap veya D harfi",
+    "solution": "Adım adım çözüm açıklaması",
+    "topic": "${params.topic}",
+    "gradeLevel": "${params.gradeLevel}",
+    "difficulty": "${params.difficulty}",
+    "type": "${params.type}",
+    "tags": ["etiket1", "etiket2"],
+    "duration": 180
+  }
+]`;
+
     const raw = await this.callClaude(prompt, systemPrompt);
+
     try {
       const jsonMatch = raw.match(/\[[\s\S]*\]/);
-      if (jsonMatch) return JSON.parse(jsonMatch[0]);
-    } catch {}
-    return [];
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      return [];
+    } catch {
+      return [];
+    }
   }
 
-  async generateFeedback(params: any): Promise<any> {
-    const systemPrompt = 'Sen BILSEM matematik ogrencilerinin gelisimini destekleyen deneyimli bir matematik ogretmenisin. Yapici, motive edici geri bildirimler yazarsin. Yaniti JSON formatinda verirsin.';
-    const prompt = 'Ogrenci: ' + params.studentName + ', Donem: ' + params.period + ', Performans: ' + params.performance + '/5. JSON formatinda yanit ver: {"strengths":"","improvements":"","nextGoals":"","motivation":""}';
+  // ─── GERİ BİLDİRİM ÜRETİCİ ─────────────────────────────────────────
+
+  async generateFeedback(params: {
+    studentName: string;
+    period: string;
+    activities: string[];
+    performance: number;
+    strengths: string[];
+    weaknesses: string[];
+  }): Promise<{
+    strengths: string;
+    improvements: string;
+    nextGoals: string;
+    motivation: string;
+  }> {
+    const systemPrompt = `Sen BİLSEM matematik öğrencilerinin gelişimini destekleyen deneyimli bir matematik öğretmenisin.
+Öğrencilere yapıcı, motive edici ve somut geri bildirimler yazarsın.
+Her zaman Türkçe, sıcak ve profesyonel bir dil kullanırsın.
+Yanıtını JSON formatında verirsin.`;
+
+    const prompt = `Aşağıdaki öğrenci için dönemlik geri bildirim yaz:
+
+Öğrenci: ${params.studentName}
+Dönem: ${params.period}
+Ortalama Performans: ${params.performance}/5
+İşlenen Konular: ${params.activities.join(', ')}
+Güçlü Yönler: ${params.strengths.join(', ')}
+Gelişim Alanları: ${params.weaknesses.join(', ')}
+
+JSON formatında yanıt ver:
+{
+  "strengths": "Güçlü yönler paragrafı (2-3 cümle)",
+  "improvements": "Gelişim alanları paragrafı (2-3 cümle, yapıcı dil)",
+  "nextGoals": "Sonraki hedefler paragrafı (2-3 madde)",
+  "motivation": "Motivasyon mesajı (1-2 cümle, içten ve motive edici)"
+}`;
+
     const raw = await this.callClaude(prompt, systemPrompt);
     try {
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
       if (jsonMatch) return JSON.parse(jsonMatch[0]);
     } catch {}
-    return { strengths: 'Iyi calisiyor.', improvements: 'Gelistirilmeli.', nextGoals: 'Hedefler belirlendi.', motivation: 'Basarili olacaksiniz!' };
+    return {
+      strengths: 'Öğrenci etkinliklere aktif katılım sağlamıştır.',
+      improvements: 'Problem çözme becerilerini geliştirmeye devam etmesi önerilmektedir.',
+      nextGoals: 'Önümüzdeki dönemde analitik düşünme becerilerini geliştirmek hedeflenmektedir.',
+      motivation: 'Harika ilerleme kaydediyorsunuz, bu başarı eğiliminizi sürdürün!',
+    };
   }
 
-  async generateTopicPlan(params: any): Promise<any[]> {
-    const systemPrompt = 'Sen BILSEM matematik mufredatini bilen bir egitim planlamacisisin. JSON formatinda haftalik planlar uretirsin.';
-    const prompt = params.totalWeeks + ' haftalik ' + params.level + ' matematik plani uret. Yaniti SADECE JSON dizisi olarak ver: [{"week":1,"topic":"","subTopics":[],"objectives":[],"suggestedActivities":[],"duration":' + (params.weeklyHours * 60) + ',"notes":""}]';
+  // ─── KONU PLANLAYICI ─────────────────────────────────────────────────
+
+  async generateTopicPlan(params: {
+    level: string;
+    gradeLevel: string;
+    weeklyHours: number;
+    totalWeeks: number;
+    groupDescription?: string;
+    focusAreas?: string[];
+  }): Promise<any[]> {
+    const systemPrompt = `Sen BİLSEM matematik müfredatını ve kazanımlarını çok iyi bilen bir eğitim planlamacısısın.
+Türkiye Milli Eğitim Bakanlığı matematik kazanımlarını ve BİLSEM üst düzey matematik etkinliklerini biliyorsun.
+Her zaman JSON formatında, uygulanabilir haftalık planlar üretirsin.`;
+
+    const prompt = `Aşağıdaki gruba uygun ${params.totalWeeks} haftalık matematik konu planı oluştur:
+
+Kademe: ${params.level}
+Sınıf Seviyesi: ${params.gradeLevel}
+Haftalık Ders Saati: ${params.weeklyHours}
+${params.groupDescription ? `Grup Profili: ${params.groupDescription}` : ''}
+${params.focusAreas?.length ? `Öncelikli Alanlar: ${params.focusAreas.join(', ')}` : ''}
+
+JSON formatında plan ver:
+[
+  {
+    "week": 1,
+    "topic": "Ana konu",
+    "subTopics": ["Alt konu 1", "Alt konu 2"],
+    "objectives": ["Kazanım 1", "Kazanım 2"],
+    "suggestedActivities": ["Etkinlik önerisi 1", "Etkinlik önerisi 2"],
+    "duration": ${params.weeklyHours * 60},
+    "notes": "Öğretmen notu"
+  }
+]`;
+
     const raw = await this.callClaude(prompt, systemPrompt);
     try {
       const jsonMatch = raw.match(/\[[\s\S]*\]/);
@@ -60,10 +176,30 @@ export class AiService {
     } catch {}
     return [];
   }
+
+  // ─── SORU ANALİZİ (OCR SONRASI) ──────────────────────────────────────
 
   async analyzeAndStructureQuestions(rawText: string): Promise<any[]> {
-    const systemPrompt = 'Sen matematik sorularini analiz eden ve yapilandiran bir uzmansın.';
-    const prompt = 'Su metinden matematik sorularini ayikla: ' + rawText + '. JSON formatinda ver: [{"title":"","body":"","correctAnswer":"","solution":"","topic":"","difficulty":"ORTA","type":"ACIK_UCLU"}]';
+    const systemPrompt = `Sen matematik sorularını analiz eden ve yapılandıran bir uzmansın.
+Verilen metinden soruları ayıklar, yapılandırır ve JSON formatına çevirirsin.`;
+
+    const prompt = `Aşağıdaki metinden matematik sorularını ayıkla ve yapılandır:
+
+${rawText}
+
+Her soru için JSON formatında çıktı ver:
+[
+  {
+    "title": "Soru özeti",
+    "body": "Soru metni",
+    "correctAnswer": "Cevap (varsa)",
+    "solution": "Çözüm (varsa)",
+    "topic": "Tahmini konu",
+    "difficulty": "KOLAY|ORTA|ZOR",
+    "type": "COGUL_SECMELI|ACIK_UCLU|PROBLEM_COZME"
+  }
+]`;
+
     const raw = await this.callClaude(prompt, systemPrompt);
     try {
       const jsonMatch = raw.match(/\[[\s\S]*\]/);
@@ -72,20 +208,71 @@ export class AiService {
     return [];
   }
 
-  async generateStudentReport(params: any): Promise<string> {
-    const systemPrompt = 'Sen BILSEM ogrencileri icin gelisim raporlari yazan uzman bir matematikci ve egitimcisin. Turkce, akademik ama anlasilir raporlar yazarsin.';
-    const prompt = 'Ogrenci: ' + params.studentName + ', Donem: ' + params.period + ', Etkinlik: ' + params.activityCount + ', Performans: ' + params.avgPerformance + '/5, Konular: ' + params.topicsStudied.join(', ') + '. Kapsamli bir gelisim raporu yaz.';
+  // ─── ÖĞRENCI RAPORU ─────────────────────────────────────────────────
+
+  async generateStudentReport(params: {
+    studentName: string;
+    period: string;
+    activityCount: number;
+    avgPerformance: number;
+    topicsStudied: string[];
+    examScores: number[];
+    observations: string[];
+  }): Promise<string> {
+    const systemPrompt = `Sen BİLSEM öğrencileri için gelişim raporları yazan uzman bir matematikçi ve eğitimcisin.
+Türkçe, akademik ama anlaşılır, kapsamlı raporlar yazarsın.`;
+
+    const prompt = `Aşağıdaki öğrenci için dönemlik gelişim raporu yaz:
+
+Öğrenci: ${params.studentName}
+Dönem: ${params.period}
+İşlenen Etkinlik Sayısı: ${params.activityCount}
+Ortalama Performans: ${params.avgPerformance}/5
+Çalışılan Konular: ${params.topicsStudied.join(', ')}
+Sınav Puanları: ${params.examScores.join(', ')}
+Gözlemler: ${params.observations.join('. ')}
+
+Kapsamlı bir gelişim raporu yaz. Raporun şu bölümleri içermeli:
+1. Genel Değerlendirme
+2. Akademik Gelişim
+3. Beceri Gelişimi  
+4. Öneriler ve Hedefler
+
+Profesyonel, yapıcı ve motive edici bir dil kullan.`;
+
     return this.callClaude(prompt, systemPrompt);
   }
 
-  async extractActivitiesFromText(text: string, level: string): Promise<any[]> {
-    const systemPrompt = 'Sen BILSEM matematik etkinlik kitaplarini analiz eden uzmansın. Verilen metinden etkinlikleri cikarir ve JSON formatina cevirirsin.';
-    const prompt = 'Su metinden etkinlikleri cikar: ' + text.slice(0, 8000) + '. JSON formatinda ver: [{"title":"","description":"","topic":"","objectives":[],"materials":[],"duration":45,"difficulty":"ORTA","skills":[],"instructions":"","gradeRange":"5-8"}]';
+  async generateResourcePlan(text: string, student: { studentName: string; mathLevel: string; level: any }): Promise<any> {
+    const systemPrompt = "Sen BİLSEM matematik kaynakları analiz eden ve öğrenciye özel çalışma planı oluşturan uzmansın. Her zaman Türkçe JSON formatında yanıt verirsin.";
+    const prompt = `Su kaynak metnini analiz et ve ${student.studentName} icin (Matematik seviyesi: ${student.mathLevel}) kisisellestirilmis calisma plani olustur.
+
+Kaynak metni:
+${text.slice(0, 6000)}
+
+SADECE su JSON formatinda yanit ver, baska hicbir sey yazma:
+{
+  "title": "Plan basligi",
+  "summary": "2-3 cumle ozet",
+  "totalQuestions": 50,
+  "items": [
+    {
+      "topic": "Konu adi",
+      "subtopic": "Alt konu",
+      "description": "Aciklama",
+      "questionCount": 10,
+      "duration": 30,
+      "teacherNote": "Ogretmen notu",
+      "goal": "Ogrenci hedefi"
+    }
+  ]
+}`;
     const raw = await this.callClaude(prompt, systemPrompt);
     try {
-      const jsonMatch = raw.match(/\[[\s\S]*\]/);
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
       if (jsonMatch) return JSON.parse(jsonMatch[0]);
     } catch {}
-    return [];
+    return { title: 'Calisma Plani', summary: '', totalQuestions: 0, items: [] };
   }
+
 }

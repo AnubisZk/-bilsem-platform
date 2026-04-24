@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { StudentsService, CreateStudentDto } from './students.service';
@@ -45,14 +46,20 @@ export class StudentsController {
     return this.studentsService.delete(id);
   }
 
-  @Post(':id/create-portal')
-  createPortal(@Param('id') id: string) {
-    return this.studentsService.createPortalAccount(id);
+  @Post(':id/avatar')
+  @UseInterceptors(FileInterceptor('file'))
+  uploadAvatar(@Param('id') id: string, @UploadedFile() file: any) {
+    return this.studentsService.uploadAvatar(id, file);
   }
 
-  @Get(':id/portal-data')
-  getPortalData(@Param('id') id: string) {
-    return this.studentsService.getPortalData(id);
+  @Delete(':id/avatar')
+  deleteAvatar(@Param('id') id: string) {
+    return this.studentsService.deleteAvatar(id);
+  }
+
+  @Put(':id')
+  updateStudent(@Param('id') id: string, @Body() body: any) {
+    return this.studentsService.update(id, body);
   }
 
 }
