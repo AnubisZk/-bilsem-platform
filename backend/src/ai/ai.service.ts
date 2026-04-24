@@ -96,4 +96,28 @@ export class AiService {
     const prompt = data.studentName + ' icin analiz yaz. Guclu: ' + (strongTopics || 'yok') + '. Zayif: ' + (weakTopics || 'yok') + '. 3-4 cumle yorum yaz.';
     return this.callClaude(prompt, sys);
   }
+
+  async analyzeAndStructureQuestions(text: string): Promise<any[]> {
+    const sys = 'Sen matematik sorularini analiz eden ve yapilandiran bir uzmansın.';
+    const prompt = 'Su metinden matematik sorularini ayikla: ' + text + '. JSON: [{"title":"","body":"","correctAnswer":"","solution":"","topic":"","difficulty":"ORTA","type":"ACIK_UCLU"}]';
+    const raw = await this.callClaude(prompt, sys);
+    try {
+      const m = raw.match(/\[[\s\S]*\]/);
+      if (m) return JSON.parse(m[0]);
+    } catch {}
+    return [];
+  }
+
+
+  async analyzeAndStructureQuestions(text: string): Promise<any[]> {
+    const sys = 'Sen matematik sorularini analiz eden ve yapilandiran bir uzmansın.';
+    const prompt = 'Su metinden matematik sorularini ayikla: ' + text + '. JSON: [{"title":"","body":"","correctAnswer":"","solution":"","topic":"","difficulty":"ORTA","type":"ACIK_UCLU"}]';
+    const raw = await this.callClaude(prompt, sys);
+    try {
+      const m = raw.match(/\[[\s\S]*\]/);
+      if (m) return JSON.parse(m[0]);
+    } catch {}
+    return [];
+  }
+
 }
