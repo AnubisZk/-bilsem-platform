@@ -62,4 +62,15 @@ export class StudentsController {
     return this.studentsService.update(id, body);
   }
 
+
+  @Post(':id/create-portal')
+  createPortal(@Param('id') id: string) {
+    return this.studentsService.createPortalAccount(id);
+  }
+
+  @Get(':id/portal-data')
+  getPortalData(@Param('id') id: string) {
+    return this.studentsService.getPortalData(id);
+  }
+
 }
