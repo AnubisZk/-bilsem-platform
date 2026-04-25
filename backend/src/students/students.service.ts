@@ -23,7 +23,7 @@ export class StudentsService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(teacherId?: string, groupId?: string) {
-    const where: any = {};
+    const where: any = { isActive: true };
     if (groupId) where.groupStudents = { some: { groupId } };
 
     return this.prisma.student.findMany({
