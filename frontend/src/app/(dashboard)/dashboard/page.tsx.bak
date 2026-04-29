@@ -10,8 +10,8 @@ import { reportsApi, activitiesApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/api';
 import { formatRelativeDate, getDifficultyColor, getDifficultyLabel } from '@/lib/utils';
 import Link from 'next/link';
-import PendingApplications from '@/components/PendingApplications';
 import {
+import PendingApplications from '@/components/PendingApplications';
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, BarChart, Bar, Cell,
 } from 'recharts';

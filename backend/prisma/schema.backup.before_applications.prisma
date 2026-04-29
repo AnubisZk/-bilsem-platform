@@ -69,52 +69,52 @@ model User {
 // ─── ÖĞRETMEN ─────────────────────────────────────────────────────────
 
 model Teacher {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id])
-  institution String   @default("Altıeylül BİLSEM")
+  id          String  @id @default(cuid())
+  userId      String  @unique
+  user        User    @relation(fields: [userId], references: [id])
+  institution String  @default("Altıeylül BİLSEM")
   title       String?
   expertise   String[]
   bio         String?
 
-  groups            Group[]
-  activityLogs      ActivityLog[]
-  feedbacks         Feedback[]
-  observations      Observation[]
-  customQuestions   CustomQuestion[]
-  plans             Plan[]
-  notebooks         TeacherNote[]
-  uploads           TeacherUpload[]
-  exams             Exam[]
+  groups          Group[]
+  activityLogs    ActivityLog[]
+  feedbacks       Feedback[]
+  observations    Observation[]
+  customQuestions CustomQuestion[]
+  plans           Plan[]
+  notebooks       TeacherNote[]
+  uploads         TeacherUpload[]
+  exams           Exam[]
   assignedResources StudentResource[]
 }
 
 // ─── ÖĞRENCİ ──────────────────────────────────────────────────────────
 
 model Student {
-  id          String   @id @default(cuid())
-  userId      String?  @unique
-  user        User?    @relation(fields: [userId], references: [id])
-  studentCode String   @unique
-  name        String
-  surname     String
-  school      String
-  grade       Int // Sınıf: 1-12
-  level       Level
-  bilsemLevel String // BİLSEM kademesi
-  mathLevel   String // Başlangıç / Gelişen / İleri / Üstün
-  strengths   String[]
-  weaknesses  String[]
-  interests   String[]
-  parentId    String?
-  parent      Parent?  @relation(fields: [parentId], references: [id])
-  notes       String?
-  photo       String?
-  avatarUrl   String?
-  isActive    Boolean  @default(true)
-  enrolledAt  DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(cuid())
+  userId         String?  @unique
+  user           User?    @relation(fields: [userId], references: [id])
+  studentCode    String   @unique
+  name           String
+  surname        String
+  school         String
+  grade          Int      // Sınıf: 1-12
+  level          Level
+  bilsemLevel    String   // BİLSEM kademesi
+  mathLevel      String   // Başlangıç / Gelişen / İleri / Üstün
+  strengths      String[]
+  weaknesses     String[]
+  interests      String[]
+  parentId       String?
+  parent         Parent?  @relation(fields: [parentId], references: [id])
+  notes          String?
+  photo          String?
+  avatarUrl      String?
+  isActive       Boolean  @default(true)
+  enrolledAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   groupStudents   GroupStudent[]
   studentLogs     StudentActivityLog[]
@@ -186,30 +186,30 @@ model Module {
 }
 
 model Activity {
-  id           String     @id @default(cuid())
-  moduleId     String
-  module       Module     @relation(fields: [moduleId], references: [id])
-  title        String
-  description  String
-  objectives   String[] // Kazanımlar
-  materials    String[] // Materyaller
-  duration     Int // Dakika
-  difficulty   Difficulty
-  skills       String[] // Beceri türleri
-  gradeRange   String // "5-7" gibi
-  level        Level
-  topic        String // Konu
-  subTopic     String?
-  instructions String // Uygulama adımları
-  teacherNotes String?
-  fileUrl      String? // Google Drive URL
-  thumbnailUrl String?
-  usageCount   Int        @default(0)
-  isOfficial   Boolean    @default(true)
-  sourceBook   String? // Hangi kitaptan
-  pageNumber   Int?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id             String     @id @default(cuid())
+  moduleId       String
+  module         Module     @relation(fields: [moduleId], references: [id])
+  title          String
+  description    String
+  objectives     String[]   // Kazanımlar
+  materials      String[]   // Materyaller
+  duration       Int        // Dakika
+  difficulty     Difficulty
+  skills         String[]   // Beceri türleri
+  gradeRange     String     // "5-7" gibi
+  level          Level
+  topic          String     // Konu
+  subTopic       String?
+  instructions   String     // Uygulama adımları
+  teacherNotes   String?
+  fileUrl        String?    // Google Drive URL
+  thumbnailUrl   String?
+  usageCount     Int        @default(0)
+  isOfficial     Boolean    @default(true)
+  sourceBook     String?    // Hangi kitaptan
+  pageNumber      Int?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   activityLogs ActivityLog[]
   planItems    PlanItem[]
@@ -218,22 +218,22 @@ model Activity {
 // ─── DERS SONRASI KAYIT ───────────────────────────────────────────────
 
 model ActivityLog {
-  id            String    @id @default(cuid())
-  teacherId     String
-  teacher       Teacher   @relation(fields: [teacherId], references: [id])
-  groupId       String?
-  group         Group?    @relation(fields: [groupId], references: [id])
-  activityId    String?
-  activity      Activity? @relation(fields: [activityId], references: [id])
-  date          DateTime
-  topic         String
-  notes         String?
-  participation Int // 1-5 puan
-  completion    Int // Yüzde
-  homeworkGiven Boolean   @default(false)
-  homeworkDesc  String?
-  duration      Int // Gerçek süre (dakika)
-  createdAt     DateTime  @default(now())
+  id              String   @id @default(cuid())
+  teacherId       String
+  teacher         Teacher  @relation(fields: [teacherId], references: [id])
+  groupId         String?
+  group           Group?   @relation(fields: [groupId], references: [id])
+  activityId      String?
+  activity        Activity? @relation(fields: [activityId], references: [id])
+  date            DateTime
+  topic           String
+  notes           String?
+  participation   Int      // 1-5 puan
+  completion      Int      // Yüzde
+  homeworkGiven   Boolean  @default(false)
+  homeworkDesc    String?
+  duration        Int      // Gerçek süre (dakika)
+  createdAt       DateTime @default(now())
 
   studentLogs StudentActivityLog[]
 }
@@ -244,7 +244,7 @@ model StudentActivityLog {
   activityLog   ActivityLog @relation(fields: [activityLogId], references: [id])
   studentId     String
   student       Student     @relation(fields: [studentId], references: [id])
-  performance   Int // 1-5
+  performance   Int         // 1-5
   notes         String?
   attended      Boolean     @default(true)
 
@@ -254,21 +254,21 @@ model StudentActivityLog {
 // ─── GERİ BİLDİRİM ───────────────────────────────────────────────────
 
 model Feedback {
-  id           String         @id @default(cuid())
-  teacherId    String
-  teacher      Teacher        @relation(fields: [teacherId], references: [id])
-  studentId    String
-  student      Student        @relation(fields: [studentId], references: [id])
-  period       String // "2024-Güz" gibi
-  strengths    String
-  improvements String
-  nextGoals    String
-  motivation   String?
-  aiGenerated  Boolean        @default(false)
-  status       FeedbackStatus @default(TASLAK)
-  sentAt       DateTime?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  id             String         @id @default(cuid())
+  teacherId      String
+  teacher        Teacher        @relation(fields: [teacherId], references: [id])
+  studentId      String
+  student        Student        @relation(fields: [studentId], references: [id])
+  period         String         // "2024-Güz" gibi
+  strengths      String
+  improvements   String
+  nextGoals      String
+  motivation     String?
+  aiGenerated    Boolean        @default(false)
+  status         FeedbackStatus @default(TASLAK)
+  sentAt         DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 }
 
 // ─── GÖZLEM NOTU ──────────────────────────────────────────────────────
@@ -288,39 +288,39 @@ model Observation {
 // ─── SORU BANKASI ─────────────────────────────────────────────────────
 
 model CustomQuestion {
-  id            String       @id @default(cuid())
-  teacherId     String
-  teacher       Teacher      @relation(fields: [teacherId], references: [id])
-  title         String
-  body          String
-  options       Json? // Çoktan seçmeli için
+  id           String       @id @default(cuid())
+  teacherId    String
+  teacher      Teacher      @relation(fields: [teacherId], references: [id])
+  title        String
+  body         String
+  options      Json?        // Çoktan seçmeli için
   correctAnswer String?
-  solution      String?
-  topic         String
-  subTopic      String?
-  gradeLevel    String
-  difficulty    Difficulty
-  type          QuestionType
-  duration      Int? // Saniye
-  tags          String[]
-  imageUrl      String?
-  pdfUrl        String?
-  isPublic      Boolean      @default(false) // Kurum ortak havuzu
-  isFavorite    Boolean      @default(false)
-  usageCount    Int          @default(0)
-  aiGenerated   Boolean      @default(false)
-  sourceInfo    String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  solution     String?
+  topic        String
+  subTopic     String?
+  gradeLevel   String
+  difficulty   Difficulty
+  type         QuestionType
+  duration     Int?         // Saniye
+  tags         String[]
+  imageUrl     String?
+  pdfUrl       String?
+  isPublic     Boolean      @default(false) // Kurum ortak havuzu
+  isFavorite   Boolean      @default(false)
+  usageCount   Int          @default(0)
+  aiGenerated  Boolean      @default(false)
+  sourceInfo   String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
-  questionTags  QuestionTag[]
-  examQuestions ExamQuestion[]
+  questionTags   QuestionTag[]
+  examQuestions  ExamQuestion[]
 }
 
 model Tag {
-  id    String @id @default(cuid())
-  name  String @unique
-  color String @default("#6366f1")
+  id        String        @id @default(cuid())
+  name      String        @unique
+  color     String        @default("#6366f1")
 
   questionTags QuestionTag[]
 }
@@ -337,20 +337,20 @@ model QuestionTag {
 // ─── SINAV / TEST ─────────────────────────────────────────────────────
 
 model Exam {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   teacherId   String
-  teacher     Teacher   @relation(fields: [teacherId], references: [id])
+  teacher     Teacher  @relation(fields: [teacherId], references: [id])
   title       String
   description String?
-  duration    Int // Dakika
+  duration    Int      // Dakika
   gradeLevel  String
   level       Level
   topic       String
-  isPublished Boolean   @default(false)
+  isPublished Boolean  @default(false)
   startDate   DateTime?
   endDate     DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   examQuestions ExamQuestion[]
   examResults   ExamResult[]
@@ -374,7 +374,7 @@ model ExamResult {
   student     Student  @relation(fields: [studentId], references: [id])
   score       Float
   answers     Json
-  duration    Int // Saniye
+  duration    Int      // Saniye
   completedAt DateTime @default(now())
 }
 
@@ -406,7 +406,7 @@ model PlanItem {
   activityId String?
   activity   Activity? @relation(fields: [activityId], references: [id])
   week       Int
-  day        Int? // 1=Pazartesi ... 5=Cuma
+  day        Int?      // 1=Pazartesi ... 5=Cuma
   topic      String
   objectives String[]
   duration   Int
@@ -422,8 +422,8 @@ model ProgressRecord {
   student   Student  @relation(fields: [studentId], references: [id])
   period    String
   topic     String
-  score     Float // 0-100
-  level     String // Başlangıç / Gelişen / İleri / Üstün
+  score     Float    // 0-100
+  level     String   // Başlangıç / Gelişen / İleri / Üstün
   notes     String?
   date      DateTime @default(now())
 }
@@ -450,7 +450,7 @@ model StudentResource {
   teacherId   String
   teacher     Teacher        @relation(fields: [teacherId], references: [id])
   fileName    String
-  fileType    String // "pdf", "docx", "image"
+  fileType    String         // "pdf", "docx", "image"
   driveFileId String
   driveUrl    String
   assignedAt  DateTime       @default(now())
@@ -460,57 +460,57 @@ model StudentResource {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
-  aiPlan ResourceAiPlan?
+  aiPlan      ResourceAiPlan?
 }
 
 model ResourceAiPlan {
-  id                      String          @id @default(cuid())
-  resourceId              String          @unique
-  resource                StudentResource @relation(fields: [resourceId], references: [id])
-  studentId               String
-  title                   String
-  summary                 String?
+  id                     String           @id @default(cuid())
+  resourceId             String           @unique
+  resource               StudentResource  @relation(fields: [resourceId], references: [id])
+  studentId              String
+  title                  String
+  summary                String?
   totalEstimatedQuestions Int             @default(0)
-  generatedByAI           Boolean         @default(true)
-  isApproved              Boolean         @default(false)
-  createdAt               DateTime        @default(now())
-  updatedAt               DateTime        @updatedAt
+  generatedByAI          Boolean          @default(true)
+  isApproved             Boolean          @default(false)
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
 
-  planItems ResourcePlanItem[]
+  planItems              ResourcePlanItem[]
 }
 
 model ResourcePlanItem {
-  id                     String         @id @default(cuid())
-  planId                 String
-  plan                   ResourceAiPlan @relation(fields: [planId], references: [id])
-  topic                  String
-  subtopic               String?
-  description            String?
+  id                    String          @id @default(cuid())
+  planId                String
+  plan                  ResourceAiPlan  @relation(fields: [planId], references: [id])
+  topic                 String
+  subtopic              String?
+  description           String?
   estimatedQuestionCount Int            @default(0)
-  suggestedDuration      Int            @default(30) // dakika
-  orderIndex             Int            @default(0)
-  teacherNote            String?
-  studentGoal            String?
-  createdAt              DateTime       @default(now())
+  suggestedDuration     Int             @default(30) // dakika
+  orderIndex            Int             @default(0)
+  teacherNote           String?
+  studentGoal           String?
+  createdAt             DateTime        @default(now())
 
-  progress StudentPlanProgress[]
+  progress              StudentPlanProgress[]
 }
 
 model StudentPlanProgress {
-  id              String           @id @default(cuid())
-  planItemId      String
-  planItem        ResourcePlanItem @relation(fields: [planItemId], references: [id])
-  studentId       String
-  isCompleted     Boolean          @default(false)
-  completedAt     DateTime?
-  solvedCount     Int              @default(0)
-  correctCount    Int              @default(0)
-  wrongCount      Int              @default(0)
-  blankCount      Int              @default(0)
+  id             String           @id @default(cuid())
+  planItemId     String
+  planItem       ResourcePlanItem @relation(fields: [planItemId], references: [id])
+  studentId      String
+  isCompleted    Boolean          @default(false)
+  completedAt    DateTime?
+  solvedCount    Int              @default(0)
+  correctCount   Int              @default(0)
+  wrongCount     Int              @default(0)
+  blankCount     Int              @default(0)
   difficultyLevel DifficultyLevel?
-  studentNote     String?
+  studentNote    String?
   teacherFeedback String?
-  updatedAt       DateTime         @updatedAt
+  updatedAt      DateTime         @updatedAt
 
   @@unique([planItemId, studentId])
 }
@@ -530,32 +530,14 @@ model TeacherNote {
 }
 
 model TeacherUpload {
-  id        String   @id @default(cuid())
-  teacherId String
-  teacher   Teacher  @relation(fields: [teacherId], references: [id])
-  filename  String
-  url       String
-  mimeType  String
-  size      Int
-  purpose   String? // "etkinlik", "soru", "rapor" vb.
-  ocrText   String? // OCR sonucu
-  createdAt DateTime @default(now())
-}
-
-model StudentApplication {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  name    String
-  email   String
-  grade   String?
-  goal    String?
-  program String?
-  note    String?
-
-  status    String  @default("PENDING")
-  studentId String? @unique
-
-  @@index([status])
+  id         String   @id @default(cuid())
+  teacherId  String
+  teacher    Teacher  @relation(fields: [teacherId], references: [id])
+  filename   String
+  url        String
+  mimeType   String
+  size       Int
+  purpose    String?  // "etkinlik", "soru", "rapor" vb.
+  ocrText    String?  // OCR sonucu
+  createdAt  DateTime @default(now())
 }
