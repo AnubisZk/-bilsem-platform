@@ -11,6 +11,7 @@ import { useAuthStore } from '@/lib/api';
 import { formatRelativeDate, getDifficultyColor, getDifficultyLabel } from '@/lib/utils';
 import Link from 'next/link';
 import {
+import PendingApplications from '@/components/PendingApplications';
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, BarChart, Bar, Cell,
 } from 'recharts';
@@ -280,6 +281,7 @@ export default function DashboardPage() {
           )}
         </div>
       </motion.div>
+          <PendingApplications />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { ApplicationsModule } from './applications/applications.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -16,7 +17,7 @@ import { ResourcesModule } from './resources/resources.module';
 import { GdriveModule } from './gdrive/gdrive.module';
 
 @Module({
-  imports: [
+  imports: [ApplicationsModule, 
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     PrismaModule,
