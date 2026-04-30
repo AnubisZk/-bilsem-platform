@@ -101,16 +101,56 @@ export class ResourcesService {
         `https://www.googleapis.com/drive/v3/files/${resource.driveFileId}?alt=media`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
-      if (resource.fileType === 'pdf') {
-        const buffer = await response.arrayBuffer();
+      if (!response.ok) {
+        throw new Error(`Drive dosyası indirilemedi: ${response.status} ${response.statusText}`);
+      }
+
+      const buffer = await response.arrayBuffer();
+      const buf = Buffer.from(buffer);
+      const fileName = (resource.fileName || '').toLowerCase();
+      const fileType = (resource.fileType || '').toLowerCase();
+
+      if (fileType === 'pdf' || fileType.includes('pdf') || fileName.endsWith('.pdf')) {
         const pdfParse = require('pdf-parse');
-        const data = await pdfParse(Buffer.from(buffer));
-        text = data.text;
+        const data = await pdfParse(buf);
+        text = data.text || '';
+      } else if (
+        fileType === 'docx' ||
+        fileType.includes('word') ||
+        fileName.endsWith('.docx')
+      ) {
+        const mammoth = require('mammoth');
+        const result = await mammoth.extractRawText({ buffer: buf });
+        text = result.value || '';
+      } else if (fileName.endsWith('.doc')) {
+        throw new Error('Eski .doc formatı doğrudan okunamaz. Lütfen dosyayı .docx olarak kaydedip tekrar yükleyin.');
       } else {
-        text = await response.text();
+        text = buf.toString('utf-8');
       }
     } catch (e) {
+      console.error('Dosya okuma hatası:', e);
       text = `Dosya adı: ${resource.fileName}`;
+    }
+
+    // AI'a göndermeden önce metni temizle ve sınırla
+    text = (text || '')
+      .replace(/\u0000/g, ' ')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
+    if (text.length > 45000) {
+      text = text.slice(0, 45000);
+    }
+
+    if (text.length < 80) {
+      text = [
+        `Dosya adı: ${resource.fileName}`,
+        `Öğrenci: ${resource.student.name} ${resource.student.surname}`,
+        `Seviye: ${resource.student.level}`,
+        `Matematik düzeyi: ${resource.student.mathLevel}`,
+        'Not: Dosya içeriği yeterince okunamadı. Plan dosya adı ve öğrenci profiline göre üretilecek.'
+      ].join('\n');
     }
 
     // AI ile plan oluştur
