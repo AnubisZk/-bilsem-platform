@@ -261,6 +261,21 @@ export default function KayitPage() {
                 </div>
               </div>
 
+
+              <div>
+                <label className="text-xs text-slate-400 mb-1.5 block">BİLSEM Öğrencisi misiniz?</label>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => set('program', 'BILSEM')}
+                    className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${form.program === 'BILSEM' ? 'border-indigo-400 bg-indigo-500/20 text-white' : 'border-white/10 bg-white/5 text-slate-400'}`}>
+                    ✓ Evet, BİLSEM öğrencisiyim
+                  </button>
+                  <button type="button" onClick={() => { set('program', 'OKUL'); set('bilsemLevel', ''); }}
+                    className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${form.program !== 'BILSEM' ? 'border-indigo-400 bg-indigo-500/20 text-white' : 'border-white/10 bg-white/5 text-slate-400'}`}>
+                    ✗ Hayır
+                  </button>
+                </div>
+              </div>
+
               {form.program === 'BILSEM' && <div>
                 <label className="text-xs text-slate-400 mb-1.5 block">BİLSEM Kademesi</label>
                 <select value={form.bilsemLevel} onChange={e => set('bilsemLevel', e.target.value)}
