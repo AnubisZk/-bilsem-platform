@@ -255,13 +255,13 @@ export default function KayitPage() {
                   <label className="text-xs text-slate-400 mb-1.5 block">Kademe *</label>
                   <select value={form.level} onChange={e => set('level', e.target.value)}
                     className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400">
-                    <option value="ILKOGRETIM" className="bg-slate-800">İlköğretim</option>
+                    <option value="ILKOGRETIM" className="bg-slate-800">Ortaokul</option>
                     <option value="LISE" className="bg-slate-800">Lise</option>
                   </select>
                 </div>
               </div>
 
-              <div>
+              {form.program === 'BILSEM' && <div>
                 <label className="text-xs text-slate-400 mb-1.5 block">BİLSEM Kademesi</label>
                 <select value={form.bilsemLevel} onChange={e => set('bilsemLevel', e.target.value)}
                   className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400">
@@ -270,7 +270,7 @@ export default function KayitPage() {
                   <option className="bg-slate-800">Özel Yetenekli 3</option>
                   <option className="bg-slate-800">Lise</option>
                 </select>
-              </div>
+              </div>}
 
               <div>
                 <label className="text-xs text-slate-400 mb-1.5 block">Veli E-postası (opsiyonel)</label>
