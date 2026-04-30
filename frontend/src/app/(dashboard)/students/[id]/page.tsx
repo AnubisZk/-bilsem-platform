@@ -486,7 +486,7 @@ export default function StudentDetailPage() {
             <button onClick={createPortal} disabled={creatingPortal} className="btn-secondary text-sm py-2">
               <Key className="w-4 h-4" />{creatingPortal ? 'Oluşturuluyor...' : 'Portal'}
             </button>
-            <a href={`/portal/${id}`} target="_blank" rel="noopener noreferrer">
+            <a href="/portal" target="_blank" rel="noopener noreferrer">
               <button className="btn-primary text-sm py-2"><ExternalLink className="w-4 h-4" /> Portala Git</button>
             </a>
             <button onClick={() => { if (confirm(`${student.name} silinsin mi?`)) deleteMutation.mutate(); }} className="btn-ghost p-2 text-red-400 hover:text-red-600">
