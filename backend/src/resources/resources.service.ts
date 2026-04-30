@@ -154,10 +154,20 @@ export class ResourcesService {
     }
 
     // AI ile plan oluştur
+    const studentAny = resource.student as any;
+    const resourceAny = resource as any;
+
+    const gradeRaw = studentAny.grade ?? studentAny.classLevel ?? studentAny.level ?? '';
+    const gradeMatch = String(gradeRaw).match(/\d+/);
+    const grade = gradeMatch ? Number(gradeMatch[0]) : 5;
+
     const planData = await this.ai.generateResourcePlan(text, {
       studentName: `${resource.student.name} ${resource.student.surname}`,
       mathLevel: resource.student.mathLevel,
       level: resource.student.level,
+      grade,
+      bilsemLevel: studentAny.bilsemLevel ?? studentAny.level,
+      context: resourceAny.context ?? studentAny.context ?? 'BILSEM',
     });
 
     // Mevcut planı sil

@@ -78,54 +78,121 @@ Türk Milli Eğitim Bakanlığı 2024-2025 öğretim programına göre değerlen
   ): Promise<any> {
     const grade = student.grade || 5;
     const curriculumCtx = this.getCurriculumContext(grade, student.bilsemLevel);
-    const contextLabel = student.context === 'BILSEM' ? 'BİLSEM etkinlik'
-      : student.context === 'OKUL' ? 'Okul dersi'
-      : 'Özel ders';
 
-    const sys = `Sen Türk Milli Eğitim Bakanlığı müfredatına ve BİLSEM programlarına hakim, deneyimli bir matematik öğretmenisin.
+    const contextLabel =
+      student.context === 'BILSEM'
+        ? 'BİLSEM etkinliği / özel yetenekli öğrenci programı'
+        : student.context === 'OKUL'
+        ? 'Okul dersi / MEB sınıf kazanımı'
+        : student.context === 'OZEL_DERS'
+        ? 'Özel ders / bireysel eksik tamamlama'
+        : 'Matematik çalışma programı';
+
+    const safeText = (text || '').slice(0, 9000);
+
+    const sys = `Sen Türkiye'de çalışan deneyimli bir matematik öğretmeni, BİLSEM danışmanı ve ölçme-değerlendirme uzmanısın.
+
 ${curriculumCtx}
-Öğrencinin sınıf düzeyine, matematik seviyesine ve program türüne göre kişiselleştirilmiş çalışma planları oluşturursun.
-SADECE JSON formatında yanıt verirsin, başka hiçbir şey yazmazsın.`;
 
-    const prompt = `Aşağıdaki kaynağı analiz et ve ${student.studentName} için (${grade}. Sınıf, Matematik Seviyesi: ${student.mathLevel}, Program: ${contextLabel}) çalışma planı oluştur.
+Görevin:
+- Yüklenen kaynağı gerçek bir öğretmen gibi incelemek,
+- Kaynağın hangi konuları içerdiğini belirlemek,
+- Öğrencinin sınıfına ve seviyesine göre uygulanabilir çalışma planı oluşturmak,
+- Gereksiz genel ifadeler yerine somut konu, alt konu, süre, soru sayısı ve öğretmen notu üretmek.
+
+Çok önemli kurallar:
+1. Yanıt yalnızca geçerli JSON object olmalı.
+2. Markdown, açıklama, kod bloğu, yorum veya ek metin yazma.
+3. Kaynak yetersizse bunu summary içinde açıkça belirt ama yine de uygulanabilir plan üret.
+4. Konuları MEB müfredatıyla ilişkilendir.
+5. BİLSEM bağlamında üst düzey düşünme, problem çözme ve akıl yürütme etkinlikleri ekle.
+6. Zorluk değeri yalnızca KOLAY, ORTA veya ZOR olabilir.`;
+
+    const prompt = `Aşağıdaki matematik kaynağını analiz et ve öğrenciye özel çalışma planı oluştur.
+
+ÖĞRENCİ BİLGİLERİ:
+- Öğrenci: ${student.studentName}
+- Sınıf: ${grade}. sınıf
+- Matematik seviyesi: ${student.mathLevel}
+- Öğrenci düzeyi/programı: ${student.level}
+- Bağlam: ${contextLabel}
 
 KAYNAK METNİ:
-${text.slice(0, 6000)}
+${safeText}
 
-Her plan maddesi için:
-- Konuyu MEB müfredatıyla ilişkilendir
-- ${grade}. sınıf seviyesine uygun zorluk belirle
-- Gerçekçi süre ve soru sayısı ver
+Planı oluştururken özellikle şunları yap:
+- Kaynaktaki ana matematik konularını tespit et.
+- Konuları ${grade}. sınıf MEB matematik müfredatıyla eşleştir.
+- Kaynakta sınıf düzeyinin üstünde veya altında kalan içerik varsa belirt.
+- Öğrencinin eksiklerini tamamlayacak sıraya göre plan maddeleri oluştur.
+- Her madde için net süre, soru sayısı, hedef, ön koşul ve öğretmen notu yaz.
+- Eğer kaynak olimpiyat/BİLSEM tarzıysa rutin işlem yerine akıl yürütme hedefi ekle.
+- Plan toplamda gerçekçi olsun; aynı başlığı gereksiz tekrar etme.
 
-SADECE JSON:
+SADECE ŞU JSON ŞEMASINA UYGUN CEVAP VER:
 {
-  "title": "Plan başlığı",
-  "summary": "Kaynağın kısa özeti ve müfredatla ilişkisi",
+  "title": "Kısa ve profesyonel plan başlığı",
+  "summary": "Kaynağın içeriği, öğrenci düzeyiyle ilişkisi ve genel çalışma önerisi",
+  "sourceType": "PDF|DOCX|DERS_NOTU|SORU_BANKASI|DENEME|ETKINLIK|DIGER",
   "gradeLevel": ${grade},
+  "context": "${contextLabel}",
+  "detectedTopics": ["Kaynakta tespit edilen konu 1", "Konu 2"],
+  "curriculumMatch": "MEB müfredatıyla uyum değerlendirmesi",
+  "levelWarning": "Düzeye göre kolay/zor/uygun içerik uyarısı",
   "totalQuestions": 40,
   "estimatedWeeks": 4,
+  "teacherOverview": "Öğretmen için kısa genel değerlendirme",
   "items": [
     {
       "topic": "Ana konu",
       "subtopic": "Alt konu",
-      "curriculumCode": "MEB müfredat kodu (varsa)",
-      "description": "Bu bölümde ne çalışılacak",
+      "curriculumCode": "Varsa kazanım/kod, yoksa kısa müfredat ilişkisi",
+      "description": "Bu bölümde öğrencinin ne çalışacağı",
       "questionCount": 10,
       "duration": 45,
       "difficulty": "KOLAY|ORTA|ZOR",
-      "teacherNote": "Öğretmen için not",
-      "goal": "Öğrenci hedefi",
-      "prerequisites": "Ön koşul konular"
+      "teacherNote": "Öğretmenin uygulamada dikkat edeceği nokta",
+      "goal": "Öğrencinin bu bölüm sonunda kazanacağı beceri",
+      "prerequisites": "Ön koşul bilgi veya önce tekrar edilmesi gereken konu",
+      "aiSuggestion": "Ek etkinlik, mini görev veya BİLSEM tipi zenginleştirme önerisi"
     }
   ]
 }`;
 
     const raw = await this.callClaude(prompt, sys, 4096);
+
     try {
-      const m = raw.match(/\{[\s\S]*\}/);
-      if (m) return JSON.parse(m[0]);
-    } catch {}
-    return { title: 'Çalışma Planı', summary: '', totalQuestions: 0, items: [] };
+      const cleaned = raw
+        .replace(/```json/gi, '')
+        .replace(/```/g, '')
+        .trim();
+
+      const start = cleaned.indexOf('{');
+      const end = cleaned.lastIndexOf('}');
+
+      if (start !== -1 && end !== -1 && end > start) {
+        const jsonText = cleaned.slice(start, end + 1);
+        return JSON.parse(jsonText);
+      }
+    } catch (e) {
+      console.error('AI plan JSON parse hatası:', e);
+      console.error('Claude raw response:', raw);
+    }
+
+    return {
+      title: 'Çalışma Planı',
+      summary: 'Kaynak analiz edildi ancak AI çıktısı JSON formatına tam dönüştürülemedi.',
+      sourceType: 'DIGER',
+      gradeLevel: grade,
+      context: contextLabel,
+      detectedTopics: [],
+      curriculumMatch: '',
+      levelWarning: '',
+      totalQuestions: 0,
+      estimatedWeeks: 0,
+      teacherOverview: '',
+      items: [],
+    };
   }
 
   // ── 2. Kaynaktan Soru Üret ────────────────────────────────────────────────
