@@ -34,6 +34,12 @@ export class AiService {
     systemPrompt: string,
     maxTokens = 4096,
   ): Promise<string> {
+    if (!this.apiKey) {
+      throw new Error('ANTHROPIC_API_KEY .env içinde bulunamadı.');
+    }
+
+    const model = this.config.get('ANTHROPIC_MODEL') || 'claude-opus-4-5';
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -42,14 +48,36 @@ export class AiService {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-opus-4-5',
+        model,
         max_tokens: maxTokens,
         system: systemPrompt,
         messages: [{ role: 'user', content: prompt }],
       }),
     });
-    const data: any = await response.json();
-    return data.content?.[0]?.text || '';
+
+    const rawText = await response.text();
+
+    if (!response.ok) {
+      console.error('[Claude API Error]', response.status, rawText.slice(0, 1200));
+      throw new Error(`Claude API hatası: ${response.status}`);
+    }
+
+    let data: any;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      console.error('[Claude Parse Error]', rawText.slice(0, 1200));
+      throw new Error('Claude cevabı JSON formatında okunamadı.');
+    }
+
+    const content = data.content?.map((c: any) => c.text || '').join('\n').trim();
+
+    if (!content) {
+      console.error('[Claude Empty Response]', JSON.stringify(data).slice(0, 1200));
+      throw new Error('Claude boş cevap döndürdü.');
+    }
+
+    return content;
   }
 
   // ── Müfredat bilgisi döndür ────────────────────────────────────────────────
