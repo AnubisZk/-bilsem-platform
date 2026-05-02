@@ -455,6 +455,7 @@ model StudentResource {
   teacher     Teacher        @relation(fields: [teacherId], references: [id])
   fileName    String
   fileType    String // "pdf", "docx", "image"
+  context     String         @default("BILSEM")
   driveFileId String
   driveUrl    String
   assignedAt  DateTime       @default(now())
