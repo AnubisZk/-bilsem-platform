@@ -49,7 +49,7 @@ export default function HomePage() {
               <Link href="/portal" className="px-7 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 transition font-bold shadow-xl">
                 Öğrenci Girişi
               </Link>
-              <Link href="/reports" className="px-7 py-4 rounded-2xl bg-white/10 hover:bg-white/20 transition font-bold border border-white/10">
+              <Link href="/login" className="px-7 py-4 rounded-2xl bg-white/10 hover:bg-white/20 transition font-bold border border-white/10">
                 Raporları Gör
               </Link>
             </div>

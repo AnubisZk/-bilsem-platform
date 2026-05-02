@@ -8,12 +8,20 @@ import { useAuthStore } from '@/lib/api';
 import { motion } from 'framer-motion';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isAuthenticated) router.replace('/login');
-  }, [isAuthenticated, router]);
+    if (!isAuthenticated) {
+      router.replace('/login');
+      return;
+    }
+
+    const role = user?.role;
+    if (role && role !== 'TEACHER' && role !== 'ADMIN') {
+      router.replace('/portal');
+    }
+  }, [isAuthenticated, user, router]);
 
   if (!isAuthenticated) {
     return (
