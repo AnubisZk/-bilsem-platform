@@ -262,12 +262,150 @@ function DriveResourceModal({ studentId, onClose }: any) {
 }
 
 // ─── RESOURCE CARD ───────────────────────────────────────────────────────────
-function ResourceCard({ resource, onApprove }: any) {
+function ResourceCard({ resource, onApprove, onChanged }: any) {
   const [expanded, setExpanded] = useState(false);
+  const [editing, setEditing] = useState(false);
+
   const plan = resource.aiPlan;
   const items = plan?.planItems || [];
+
+  const [planDraft, setPlanDraft] = useState({
+    title: plan?.title || '',
+    summary: plan?.summary || '',
+  });
+
+  const [draftItems, setDraftItems] = useState<any[]>([]);
+
   const completed = items.filter((i: any) => i.progress?.length > 0 && i.progress[0]?.isCompleted).length;
   const progress = items.length ? Math.round((completed / items.length) * 100) : 0;
+
+  function refresh() {
+    onChanged?.();
+  }
+
+  function startEdit() {
+    if (!plan) return;
+    setPlanDraft({
+      title: plan.title || '',
+      summary: plan.summary || '',
+    });
+    setDraftItems(items.map((item: any) => ({ ...item })));
+    setExpanded(true);
+    setEditing(true);
+  }
+
+  function cancelEdit() {
+    setEditing(false);
+    setDraftItems([]);
+  }
+
+  function updateDraftItem(index: number, field: string, value: any) {
+    setDraftItems((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
+    );
+  }
+
+  function addDraftItem() {
+    setDraftItems((prev) => [
+      ...prev,
+      {
+        id: `new-${Date.now()}`,
+        topic: 'Yeni konu',
+        subtopic: '',
+        description: '',
+        estimatedQuestionCount: 10,
+        suggestedDuration: 30,
+        orderIndex: prev.length,
+        teacherNote: '',
+        studentGoal: '',
+      },
+    ]);
+  }
+
+  const updatePlanMutation = useMutation({
+    mutationFn: (data: any) => api.put(`/resources/${resource.id}/plan`, data),
+    onSuccess: () => {
+      toast.success('Plan başlığı güncellendi');
+      refresh();
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Plan güncellenemedi');
+    },
+  });
+
+  const deletePlanMutation = useMutation({
+    mutationFn: () => api.delete(`/resources/${resource.id}/plan`),
+    onSuccess: () => {
+      toast.success('Plan silindi');
+      setEditing(false);
+      refresh();
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Plan silinemedi');
+    },
+  });
+
+  const saveItemMutation = useMutation({
+    mutationFn: ({ item, index }: any) => {
+      const payload = {
+        topic: item.topic || 'Yeni konu',
+        subtopic: item.subtopic || '',
+        description: item.description || '',
+        estimatedQuestionCount: Number(item.estimatedQuestionCount) || 0,
+        suggestedDuration: Number(item.suggestedDuration) || 30,
+        orderIndex: Number(item.orderIndex) || index,
+        teacherNote: item.teacherNote || '',
+        studentGoal: item.studentGoal || '',
+      };
+
+      if (String(item.id).startsWith('new-')) {
+        return api.post(`/resources/${resource.id}/plan-items`, payload);
+      }
+
+      return api.put(`/resources/plan-items/${item.id}`, payload);
+    },
+    onSuccess: () => {
+      toast.success('Plan maddesi kaydedildi');
+      refresh();
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Madde kaydedilemedi');
+    },
+  });
+
+  const deleteItemMutation = useMutation({
+    mutationFn: (itemId: string) => api.delete(`/resources/plan-items/${itemId}`),
+    onSuccess: () => {
+      toast.success('Plan maddesi silindi');
+      refresh();
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Madde silinemedi');
+    },
+  });
+
+  async function savePlanHeader() {
+    await updatePlanMutation.mutateAsync({
+      title: planDraft.title,
+      summary: planDraft.summary,
+    });
+  }
+
+  async function savePlanItem(item: any, index: number) {
+    await saveItemMutation.mutateAsync({ item, index });
+  }
+
+  function removeDraftItem(item: any, index: number) {
+    if (String(item.id).startsWith('new-')) {
+      setDraftItems((prev) => prev.filter((_, i) => i !== index));
+      return;
+    }
+
+    if (!confirm('Bu plan maddesi silinsin mi?')) return;
+
+    deleteItemMutation.mutate(item.id);
+    setDraftItems((prev) => prev.filter((_, i) => i !== index));
+  }
 
   return (
     <div className="card p-4">
@@ -275,6 +413,7 @@ function ResourceCard({ resource, onApprove }: any) {
         <div className="w-9 h-9 bg-green-50 dark:bg-green-900/20 rounded-lg flex items-center justify-center flex-shrink-0">
           <FileText className="w-5 h-5 text-green-500" />
         </div>
+
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{resource.fileName}</p>
@@ -288,10 +427,12 @@ function ResourceCard({ resource, onApprove }: any) {
                resource.isVisible ? 'Atandı' : 'Onay Bekliyor'}
             </span>
           </div>
+
           <div className="flex items-center gap-3 mt-1">
             <p className="text-xs text-gray-400">{items.length} konu</p>
             {resource.dueDate && <p className="text-xs text-gray-400">Son: {new Date(resource.dueDate).toLocaleDateString('tr-TR')}</p>}
           </div>
+
           {items.length > 0 && (
             <div className="mt-2">
               <div className="flex items-center justify-between mb-1">
@@ -304,12 +445,20 @@ function ResourceCard({ resource, onApprove }: any) {
             </div>
           )}
         </div>
+
         <div className="flex items-center gap-1 flex-shrink-0">
+          {plan && !editing && (
+            <button onClick={startEdit} className="btn-secondary text-xs py-1.5 px-3">
+              Planı Düzenle
+            </button>
+          )}
+
           {plan && !resource.isVisible && (
             <button onClick={() => onApprove(resource.id)} className="btn-primary text-xs py-1.5 px-3">
               <Eye className="w-3 h-3" /> Onayla
             </button>
           )}
+
           <button onClick={() => setExpanded(!expanded)} className="btn-ghost p-1.5">
             <ChevronRight className={cn('w-4 h-4 transition-transform', expanded && 'rotate-90')} />
           </button>
@@ -320,35 +469,176 @@ function ResourceCard({ resource, onApprove }: any) {
         {expanded && plan && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <div className="mt-3 pt-3 border-t border-black/[0.04] dark:border-white/[0.04]">
-              <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">{plan.title}</p>
-              {plan.summary && <p className="text-xs text-gray-500 mb-3">{plan.summary}</p>}
-              <div className="space-y-2">
-                {items.slice(0, 5).map((item: any, i: number) => {
-                  const prog = item.progress?.[0];
-                  return (
-                    <div key={item.id} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                      <div className={cn('w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0',
-                        prog?.isCompleted ? 'bg-emerald-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
-                      )}>
-                        {prog?.isCompleted ? '✓' : i + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">{item.topic}</p>
-                        {item.subtopic && <p className="text-[10px] text-gray-400">{item.subtopic}</p>}
-                      </div>
-                      <div className="flex items-center gap-1 text-[10px] text-gray-400">
-                        <Clock className="w-3 h-3" />{item.suggestedDuration}dk
-                      </div>
-                      {prog && (
-                        <div className="text-[10px] text-emerald-600 font-medium">
-                          {prog.correctCount}/{prog.solvedCount}
+
+              {!editing && (
+                <>
+                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">{plan.title}</p>
+                  {plan.summary && <p className="text-xs text-gray-500 mb-3">{plan.summary}</p>}
+
+                  <div className="space-y-2">
+                    {items.map((item: any, i: number) => {
+                      const prog = item.progress?.[0];
+
+                      return (
+                        <div key={item.id} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                          <div className={cn('w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0',
+                            prog?.isCompleted ? 'bg-emerald-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
+                          )}>
+                            {prog?.isCompleted ? '✓' : i + 1}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">{item.topic}</p>
+                            {item.subtopic && <p className="text-[10px] text-gray-400">{item.subtopic}</p>}
+                          </div>
+
+                          <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                            <Clock className="w-3 h-3" />{item.suggestedDuration}dk
+                          </div>
+
+                          {prog && (
+                            <div className="text-[10px] text-emerald-600 font-medium">
+                              {prog.correctCount}/{prog.solvedCount}
+                            </div>
+                          )}
                         </div>
-                      )}
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {editing && (
+                <div className="space-y-3">
+                  <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl space-y-2">
+                    <label className="block text-[11px] font-medium text-gray-500">Plan başlığı</label>
+                    <input
+                      value={planDraft.title}
+                      onChange={(e) => setPlanDraft((p) => ({ ...p, title: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-sm"
+                    />
+
+                    <label className="block text-[11px] font-medium text-gray-500">Plan özeti</label>
+                    <textarea
+                      value={planDraft.summary}
+                      onChange={(e) => setPlanDraft((p) => ({ ...p, summary: e.target.value }))}
+                      rows={3}
+                      className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-sm"
+                    />
+
+                    <div className="flex gap-2 flex-wrap">
+                      <button onClick={savePlanHeader} disabled={updatePlanMutation.isPending} className="btn-primary text-xs py-1.5">
+                        {updatePlanMutation.isPending ? 'Kaydediliyor...' : 'Başlığı Kaydet'}
+                      </button>
+
+                      <button onClick={addDraftItem} className="btn-secondary text-xs py-1.5">
+                        Madde Ekle
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          if (confirm('Bu kaynak için oluşturulan tüm AI planı silinsin mi?')) {
+                            deletePlanMutation.mutate();
+                          }
+                        }}
+                        disabled={deletePlanMutation.isPending}
+                        className="btn-ghost text-xs py-1.5 text-red-500 hover:text-red-600"
+                      >
+                        Planı Sil
+                      </button>
+
+                      <button onClick={cancelEdit} className="btn-ghost text-xs py-1.5">
+                        Kapat
+                      </button>
                     </div>
-                  );
-                })}
-                {items.length > 5 && <p className="text-xs text-gray-400 text-center">+{items.length - 5} konu daha</p>}
-              </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {draftItems.map((item: any, i: number) => (
+                      <div key={item.id} className="p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900/40 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">Madde {i + 1}</p>
+                          <button onClick={() => removeDraftItem(item, i)} className="text-xs text-red-500 hover:text-red-600">
+                            Sil
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          <input
+                            value={item.topic || ''}
+                            onChange={(e) => updateDraftItem(i, 'topic', e.target.value)}
+                            placeholder="Konu"
+                            className="px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs"
+                          />
+
+                          <input
+                            value={item.subtopic || ''}
+                            onChange={(e) => updateDraftItem(i, 'subtopic', e.target.value)}
+                            placeholder="Alt konu"
+                            className="px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs"
+                          />
+                        </div>
+
+                        <textarea
+                          value={item.description || ''}
+                          onChange={(e) => updateDraftItem(i, 'description', e.target.value)}
+                          placeholder="Açıklama"
+                          rows={2}
+                          className="w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs"
+                        />
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                          <input
+                            type="number"
+                            value={item.estimatedQuestionCount || 0}
+                            onChange={(e) => updateDraftItem(i, 'estimatedQuestionCount', e.target.value)}
+                            placeholder="Soru"
+                            className="px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs"
+                          />
+
+                          <input
+                            type="number"
+                            value={item.suggestedDuration || 30}
+                            onChange={(e) => updateDraftItem(i, 'suggestedDuration', e.target.value)}
+                            placeholder="Süre"
+                            className="px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs"
+                          />
+
+                          <input
+                            type="number"
+                            value={item.orderIndex ?? i}
+                            onChange={(e) => updateDraftItem(i, 'orderIndex', e.target.value)}
+                            placeholder="Sıra"
+                            className="px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs"
+                          />
+
+                          <button
+                            onClick={() => savePlanItem(item, i)}
+                            disabled={saveItemMutation.isPending}
+                            className="btn-primary text-xs py-2 justify-center"
+                          >
+                            Kaydet
+                          </button>
+                        </div>
+
+                        <input
+                          value={item.studentGoal || ''}
+                          onChange={(e) => updateDraftItem(i, 'studentGoal', e.target.value)}
+                          placeholder="Öğrenci hedefi"
+                          className="w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs"
+                        />
+
+                        <input
+                          value={item.teacherNote || ''}
+                          onChange={(e) => updateDraftItem(i, 'teacherNote', e.target.value)}
+                          placeholder="Öğretmen notu"
+                          className="w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
@@ -523,7 +813,7 @@ export default function StudentDetailPage() {
             <button onClick={() => setShowDrive(true)} className="btn-ghost text-sm py-1.5"><Plus className="w-3.5 h-3.5" /> Ekle</button>
           </div>
           {resources.map((r: any) => (
-            <ResourceCard key={r.id} resource={r} onApprove={(rid: string) => approveMutation.mutate(rid)} />
+            <ResourceCard key={r.id} resource={r} onApprove={(rid: string) => approveMutation.mutate(rid)} onChanged={() => qc.invalidateQueries({ queryKey: ['student-resources', id] })} />
           ))}
         </motion.div>
       )}

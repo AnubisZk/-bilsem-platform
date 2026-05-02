@@ -47,6 +47,41 @@ export class ResourcesController {
     return this.service.approveAndPublish(resourceId);
   }
 
+
+  // Plan başlığını ve özetini güncelle
+  @Put('resource-plans/:planId')
+  updatePlan(@Param('planId') planId: string, @Body() body: any) {
+    return this.service.updatePlan(planId, body);
+  }
+
+  // Plana yeni madde ekle
+  @Post('resource-plans/:planId/items')
+  createPlanItem(@Param('planId') planId: string, @Body() body: any) {
+    return this.service.createPlanItem(planId, body);
+  }
+
+  // Plan maddelerini yeniden sırala
+  @Put('resource-plans/:planId/reorder')
+  reorderPlanItems(
+    @Param('planId') planId: string,
+    @Body() body: { items: { id: string; orderIndex: number }[] },
+  ) {
+    return this.service.reorderPlanItems(planId, body.items || []);
+  }
+
+  // Plan maddesini sil
+  @Delete('resource-plan-items/:itemId')
+  deletePlanItem(@Param('itemId') itemId: string) {
+    return this.service.deletePlanItem(itemId);
+  }
+
+  // Kaynağa ait AI planını tamamen sil
+  @Delete('resources/:resourceId/plan')
+  deleteResourcePlan(@Param('resourceId') resourceId: string) {
+    return this.service.deleteResourcePlan(resourceId);
+  }
+
+
   // Plan maddesini güncelle (öğretmen)
   @Put('resource-plan-items/:itemId')
   updatePlanItem(@Param('itemId') itemId: string, @Body() body: any) {

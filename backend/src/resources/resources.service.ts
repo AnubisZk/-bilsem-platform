@@ -206,6 +206,133 @@ export class ResourcesService {
     return plan;
   }
 
+
+  async updatePlan(planId: string, data: {
+    title?: string;
+    summary?: string;
+    totalEstimatedQuestions?: number;
+  }) {
+    const updateData: any = {};
+
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.summary !== undefined) updateData.summary = data.summary;
+    if (data.totalEstimatedQuestions !== undefined) {
+      updateData.totalEstimatedQuestions = Number(data.totalEstimatedQuestions);
+    }
+
+    return this.prisma.resourceAiPlan.update({
+      where: { id: planId },
+      data: updateData,
+      include: {
+        planItems: {
+          orderBy: { orderIndex: 'asc' },
+          include: { progress: true },
+        },
+      },
+    });
+  }
+
+  async createPlanItem(planId: string, data: {
+    topic?: string;
+    subtopic?: string;
+    description?: string;
+    estimatedQuestionCount?: number;
+    suggestedDuration?: number;
+    orderIndex?: number;
+    teacherNote?: string;
+    studentGoal?: string;
+  }) {
+    const maxOrder = await this.prisma.resourcePlanItem.aggregate({
+      where: { planId },
+      _max: { orderIndex: true },
+    });
+
+    return this.prisma.resourcePlanItem.create({
+      data: {
+        planId,
+        topic: data.topic || 'Yeni konu',
+        subtopic: data.subtopic || '',
+        description: data.description || '',
+        estimatedQuestionCount: Number(data.estimatedQuestionCount || 0),
+        suggestedDuration: Number(data.suggestedDuration || 30),
+        orderIndex:
+          typeof data.orderIndex === 'number'
+            ? data.orderIndex
+            : (maxOrder._max.orderIndex ?? -1) + 1,
+        teacherNote: data.teacherNote || '',
+        studentGoal: data.studentGoal || '',
+      },
+      include: { progress: true },
+    });
+  }
+
+  async deletePlanItem(itemId: string) {
+    const item = await this.prisma.resourcePlanItem.findUnique({
+      where: { id: itemId },
+    });
+
+    if (!item) throw new NotFoundException('Plan maddesi bulunamadı');
+
+    await this.prisma.studentPlanProgress.deleteMany({
+      where: { planItemId: itemId },
+    });
+
+    return this.prisma.resourcePlanItem.delete({
+      where: { id: itemId },
+    });
+  }
+
+  async reorderPlanItems(planId: string, items: { id: string; orderIndex: number }[]) {
+    return this.prisma.$transaction(
+      items.map((item) =>
+        this.prisma.resourcePlanItem.update({
+          where: { id: item.id },
+          data: { orderIndex: Number(item.orderIndex) },
+        }),
+      ),
+    );
+  }
+
+  async deleteResourcePlan(resourceId: string) {
+    const plan = await this.prisma.resourceAiPlan.findUnique({
+      where: { resourceId },
+      include: { planItems: true },
+    });
+
+    if (!plan) throw new NotFoundException('Plan bulunamadı');
+
+    const itemIds = plan.planItems.map((item) => item.id);
+
+    if (itemIds.length > 0) {
+      await this.prisma.studentPlanProgress.deleteMany({
+        where: { planItemId: { in: itemIds } },
+      });
+    }
+
+    await this.prisma.resourcePlanItem.deleteMany({
+      where: { planId: plan.id },
+    });
+
+    await this.prisma.resourceAiPlan.delete({
+      where: { id: plan.id },
+    });
+
+    return this.prisma.studentResource.update({
+      where: { id: resourceId },
+      data: { isVisible: false },
+      include: {
+        aiPlan: {
+          include: {
+            planItems: {
+              orderBy: { orderIndex: 'asc' },
+            },
+          },
+        },
+      },
+    });
+  }
+
+
   async updatePlanItem(itemId: string, data: {
     topic?: string;
     subtopic?: string;
